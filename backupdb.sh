@@ -15,6 +15,9 @@ DBLIST=(django_website_prod gallery2 indrel_database_production postgres redmine
 if [ ! -d $BACKUPPATH ]; then
     mkdir $BACKUPPATH
 fi
+if [ ! -d $BACKUPHOME/latest ]; then
+    mkdir $BACKUPHOME/latest
+fi
 cd $BACKUPPATH
 for DB in "${DBLIST[@]}"; do #Dump each database in the list
     MONTHLYARCH=$DB-$MMMYY
@@ -24,11 +27,14 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
 	mkdir $MONTHLYARCH
     fi
     #Dump the current database into a file
+    echo "Dumping $DB"
     pg_dump -U postgres $DB > $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql
-    pbzip2 -zc $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql >$BACKUPHOME/latest/$DB-latest.sql.bz2
     if [ -f $BACKUPHOME/$DB-latest.bz2 ]; then
-	rm $BACKUPHOME/$DB-latest.bz2
+	rm $BACKUPHOME/latest/$DB-latest.bz2
     fi
+    echo "Compressing $DB-latest.bz2"
+    pbzip2 -zc $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql >$BACKUPHOME/latest/$DB-latest.sql.bz2
+
     if [ -f $BACKUPPATH/$MONTHLYARCH/$DB-$MONTH-base.sql ]; then
 	#If there is a base dump for the month, diff the current dump with the base and store that instead.
 	diff $BACKUPPATH/$MONTHLYARCH/$DB-$MONTH-base.sql $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql  >$BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.diff
@@ -37,6 +43,8 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
     else
 	mv $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql $BACKUPPATH/$MONTHLYARCH/$DB-$MONTH-base.sql
     fi
-    tar -cjf $MONTHLYARCH.tar.bz2 $MONTHLYARCH/
+    echo "Compressing monthly archives of $DB"
+    tar -c $MONTHLYARCH/ >$MONTHLYARCH.tar
+    pbzip2 -vf $MONTHLYARCH.tar
     rm -rf $BACKUPPATH/$MONTHLYARCH/
 done
