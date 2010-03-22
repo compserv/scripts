@@ -25,18 +25,18 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
     fi
     #Dump the current database into a file
     pg_dump -U postgres $DB > $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql
+    pbzip2 -zc $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql >$BACKUPHOME/latest/$DB-latest.sql.bz2
+    if [ -f $BACKUPHOME/$DB-latest.bz2 ]; then
+	rm $BACKUPHOME/$DB-latest.bz2
+    fi
     if [ -f $BACKUPPATH/$MONTHLYARCH/$DB-$MONTH-base.sql ]; then
 	#If there is a base dump for the month, diff the current dump with the base and store that instead.
 	diff $BACKUPPATH/$MONTHLYARCH/$DB-$MONTH-base.sql $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql  >$BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.diff
+
 	rm $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql
     else
 	mv $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql $BACKUPPATH/$MONTHLYARCH/$DB-$MONTH-base.sql
     fi
     tar -cjf $MONTHLYARCH.tar.bz2 $MONTHLYARCH/
-    
-    if [ -f $BACKUPHOME/$DB-latest.bz2 ]; then
-	rm $BACKUPHOME/$DB-latest.bz2
-    fi
-    bzip2 -zc $BACKUPPATH/$MONTHLYARCH/$DB-$DATE.sql >$BACKUPHOME/latest/$DB-latest.sql.bz2
     rm -rf $BACKUPPATH/$MONTHLYARCH/
 done
