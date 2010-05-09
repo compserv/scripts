@@ -15,15 +15,20 @@
 # expansion is dest and people it goes to
 
 # TODO: MENTION ALL OPTIONS ARE MUTUALLY EXCLUSIVE
-# TODO: SEARCH IN ALIASES file as well
+# TODO: SEARCH IN ALIASES_OUTPUT file as well
 
 import os
 import sys
 from optparse import OptionParser
 
 MAILLISTS_DIR = "/home/hkn/compserv/new-maillists"
-VIRTUAL = "/home/hkn/compserv/virtual.sample"
-ALIASES = "/home/hkn/compserv/aliases.sample"
+VIRTUAL_OUTPUT = "/home/hkn/compserv/virtual.sample"
+ALIASES_OUTPUT = "/home/hkn/compserv/aliases.sample"
+
+ACTUAL_VIRTUAL = '/etc/postfix/virtual'
+ACTUAL_ALIASES = '/etc/aliases'
+
+ENTRIES_PATH = set([])
 
 def error_exit(str):
     print "[ERROR] %s" % str
@@ -48,6 +53,7 @@ def list_files(dirpath):
     Reads the list of files stored in the dirpath and returns a tuple:
     (entries, rulesets, addons, directories).
     """
+    global ENTRIES_PATH
     files = os.listdir(dirpath)
     entries = []
     rulesets = []
@@ -65,6 +71,7 @@ def list_files(dirpath):
             directories.append(file)
         else:
             entries.append(file)
+            ENTRIES_PATH.add(os.path.join(dirpath, file))
 
     return (entries, rulesets, aliases_rulesets, addons, directories)
 
@@ -243,6 +250,16 @@ def parse_options():
             help="reverse expand expansion; find targets expansion belongs to")
     parser.add_option("-a", action="store_true", dest="aliases", default=False,
             help="do given action for the aliases file")
+    parser.add_option("-i", dest="to_insert", metavar="email entry", nargs=2,
+            help="inserts the email to the given target. Works only with " + 
+            "virtual file.")
+    parser.add_option("-d", dest="to_delete", metavar="email entry", nargs=2,
+            help="deletes the email from the given target. This doesn't " + 
+            "actually delete the entry but only comments it out. Works only " +
+            "with virtual file.")
+    parser.add_option("-z", action="store_true", dest="real_sync",
+            default=False, help="syncs directly to the actual file instead" +
+            "of syncing to the test aliases and virtual file.")
 
     options, args = parser.parse_args()
     return (options, args)
@@ -310,7 +327,56 @@ def reverse_expand(to_lookup, recursive, table):
     else:
         error_exit("Could not find expansion: %s" % to_lookup)
 
-def main():
+def insert_email(email, entry):
+    global ENTRIES_PATH
+    email = email.strip()
+    entry_path = ""
+
+    for path in ENTRIES_PATH:
+        if entry == os.path.basename(path):
+            entry_path = path
+
+    if entry_path == "":
+        error_exit("Could not find entry file: %s" % entry)
+
+    f = open(entry_path, 'a+')
+    lines = f.readlines()
+    for line in lines:
+        if email == line.strip():
+            error_exit("Following email already exists in entry: %s" % email)
+
+    last_line = lines[len(lines)-1]
+    if last_line[len(last_line)-1] != '\n':
+        # If last character isn't a newline
+        f.write('\n')
+    f.write(email + '\n')
+    f.close()
+
+def delete_email(email, entry):
+    global ENTRIES_PATH
+    email = email.strip()
+    entry_path = ""
+
+    for path in ENTRIES_PATH:
+        if entry == os.path.basename(path):
+            entry_path = path
+
+    if entry_path == "":
+        error_exit("Could not find entry file: %s" % entry)
+
+    f = open(entry_path, 'a+')
+    lines = f.readlines()
+    email_index = -1
+    for line in lines:
+        if email == line.strip():
+            email_index = lines.index(line)
+    if email_index == -1:
+        error_exit("Following email doesn't exists in entry: %s" % email)
+
+    lines[email_index] = '#' + lines[email_index]
+    f.writelines(lines)
+
+def init():
     global MAILLISTS_DIR
     virtual, aliases = fill_table(MAILLISTS_DIR)
 
@@ -321,6 +387,11 @@ def main():
     for target in aliases.keys():
         if not aliases[target]:
             error_exit("Following target has no expansion: %s" % target)
+    
+    return virtual, aliases
+
+def main():
+    virtual, aliases = init()
 
     options, args = parse_options()
     if options.list:
@@ -332,12 +403,35 @@ def main():
     elif options.expansion != None:
         table = aliases if options.aliases else virtual
         reverse_expand(options.expansion, options.recursive, table)
-    else:
-        global VIRTUAL
-        virtual_file = open(VIRTUAL, "w")
+    elif options.to_insert != None:
+        email, entry = options.to_insert
+        insert_email(email, entry)
+    elif options.to_delete != None:
+        email, entry = options.to_delete
+        delete_email(email, entry)
+    elif options.real_sync:
+        global ACTUAL_VIRTUAL
+        actual_virtual = open(ACTUAL_VIRTUAL, 'w')
 
-        global ALIASES
-        aliases_file = open(ALIASES, "w")
+        for target in virtual.keys():
+            expansions = ", ".join(virtual[target])
+            actual_virtual.write("%s\t\t\t%s\n" % (target, expansions))
+
+        global ACTUAL_ALIASES
+        actual_aliases = open(ACTUAL_ALIASES, 'w')
+
+        for target in aliases.keys():
+            expansions = ", ".join(aliases[target])
+            actual_aliases.write("%s:\t\t\t%s\n" % (target, expansions))
+
+        os.system("postmap " + ACTUAL_VIRTUAL)
+        os.system("newaliases")
+    else:
+        global VIRTUAL_OUTPUT
+        virtual_file = open(VIRTUAL_OUTPUT, "w")
+
+        global ALIASES_OUTPUT
+        aliases_file = open(ALIASES_OUTPUT, "w")
 
         for target in virtual.keys():
             expansions = ", ".join(virtual[target])
