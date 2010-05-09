@@ -11,7 +11,7 @@ DATE=`date +"%Y-%m-%d"`
 TIME=`date +"%H%M"`
 BACKUPHOME=/home/hkn/compserv/dbbackups
 BACKUPPATH=$BACKUPHOME/$MMMYY
-DBLIST=(django_website_prod gallery2 indrel_database_production postgres redmine wikidb)
+DBLIST=(django_website_prod gallery2 indrel_database_production postgres redmine wikidb courseguidedb)
 if [ ! -d $BACKUPPATH ]; then
     mkdir $BACKUPPATH
 fi
