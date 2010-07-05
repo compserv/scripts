@@ -17,22 +17,44 @@
 # TODO: MENTION ALL OPTIONS ARE MUTUALLY EXCLUSIVE
 # TODO: SEARCH IN ALIASES_OUTPUT file as well
 
+import fcntl
 import os
+import subprocess
 import sys
 from optparse import OptionParser
 
-MAILLISTS_DIR = "/home/hkn/compserv/new-maillists"
-VIRTUAL_OUTPUT = "/home/hkn/compserv/virtual.sample"
-ALIASES_OUTPUT = "/home/hkn/compserv/aliases.sample"
+SCRIPT_HOME = "/home/hkn/compserv/mmlist"
+SCRIPT_LOCK = os.path.join(SCRIPT_HOME, "lock")
+
+MAILLISTS_DIR = os.path.join(SCRIPT_HOME, "new-maillists")
+VIRTUAL_OUTPUT = os.path.join(SCRIPT_HOME, "virtual.sample")
+ALIASES_OUTPUT = os.path.join(SCRIPT_HOME, "aliases.sample")
 
 ACTUAL_VIRTUAL = '/etc/postfix/virtual'
 ACTUAL_ALIASES = '/etc/aliases'
 
 ENTRIES_PATH = set([])
 
+def script_exit(error_code):
+    try:
+        global SCRIPT_LOCK
+        f = open(SCRIPT_LOCK)
+        pid = int(f.readline())
+        f.close()
+        if pid == os.getpid():
+            try:
+                os.remove(SCRIPT_LOCK)
+            except:
+                print("[CRITICAL ERROR] Couldn't remove lock file belonging " +
+                "to this process.")
+    except:
+        pass
+
+    sys.exit(error_code)
+
 def error_exit(str):
     print "[ERROR] %s" % str
-    sys.exit(1)
+    script_exit(1)
 
 def clean_lines(lines):
     """
@@ -90,6 +112,11 @@ def read_entry(entry_path):
 
     entry = os.path.basename(entry_path)
     f = open(entry_path)
+    try:
+        fcntl.lockf(f.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except IOError:
+        error_exit("Cannot lock file: %s" % entry_path)
+
     addresses = []
     aliases = {}
 
@@ -107,6 +134,9 @@ def read_entry(entry_path):
     if not addresses:
         error_exit("Following entry had no expansions: %s" % entry)
 
+    fcntl.lockf(f.fileno(), fcntl.LOCK_UN)
+    f.close()
+
     return ({entry: addresses}, aliases)
 
 def read_ruleset(ruleset_path):
@@ -118,6 +148,11 @@ def read_ruleset(ruleset_path):
 
     ruleset = ruleset_path
     f = open(ruleset_path)
+    try:
+        fcntl.lockf(f.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except IOError:
+        error_exit("Cannot lock file: %s" % entry_path)
+
     virtual = {}
 
     lines = clean_lines(f.readlines())
@@ -129,6 +164,9 @@ def read_ruleset(ruleset_path):
                 expansions.split(",") if len(expansion) > 0]
         virtual[target] = expansions_list
 
+    fcntl.lockf(f.fileno(), fcntl.LOCK_UN)
+    f.close()
+
     return (virtual, {})
 
 def read_aliases_ruleset(aliases_ruleset_path):
@@ -139,6 +177,11 @@ def read_aliases_ruleset(aliases_ruleset_path):
 
     aliases_ruleset = aliases_ruleset_path
     f = open(aliases_ruleset_path)
+    try:
+        fcntl.lockf(f.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except IOError:
+        error_exit("Cannot lock file: %s" % entry_path)
+
     aliases = {}
 
     lines = clean_lines(f.readlines())
@@ -149,7 +192,9 @@ def read_aliases_ruleset(aliases_ruleset_path):
                 expansions.split(",") if len(expansion.strip()) > 0]
         aliases[target] = expansions_list
 
-    # TODO
+    fcntl.lockf(f.fileno(), fcntl.LOCK_UN)
+    f.close()
+
     return ({}, aliases)
 
 def read_directory(directory_path):
@@ -177,6 +222,11 @@ def read_addon(addon_path, dir_virtual):
     addresses = []
     
     f = open(addon_path)
+    try:
+        fcntl.lockf(f.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except IOError:
+        error_exit("Cannot lock file: %s" % entry_path)
+
     lines = clean_lines(f.readlines())
     for line in lines:
         if line[0] == "@":
@@ -190,6 +240,9 @@ def read_addon(addon_path, dir_virtual):
 
     if not addresses:
         error_exit("Following addon had no expansions: %s" % addon)
+
+    fcntl.lockf(f.fileno(), fcntl.LOCK_UN)
+    f.close()
 
     return ({addon: addresses}, {})
 
@@ -293,7 +346,7 @@ def expand(to_lookup, recursive, table):
         else:
             to_print = shallow_expand(to_lookup)
         to_print.sort()
-        print "\n".join(to_print)
+        return to_print
     else:
         error_exit("Could not find target: %s" % to_lookup)
 
@@ -323,7 +376,7 @@ def reverse_expand(to_lookup, recursive, table):
         else:
             to_print = shallow_reverse_expand(to_lookup)
         to_print.sort()
-        print "\n".join(to_print)
+        return to_print
     else:
         error_exit("Could not find expansion: %s" % to_lookup)
 
@@ -364,7 +417,7 @@ def delete_email(email, entry):
     if entry_path == "":
         error_exit("Could not find entry file: %s" % entry)
 
-    f = open(entry_path, 'a+')
+    f = open(entry_path, 'r+')
     lines = f.readlines()
     email_index = -1
     for line in lines:
@@ -374,10 +427,28 @@ def delete_email(email, entry):
         error_exit("Following email doesn't exists in entry: %s" % email)
 
     lines[email_index] = '#' + lines[email_index]
+    f.seek(os.SEEK_SET)
     f.writelines(lines)
+    f.close()
 
 def init():
+    # If there is another instance of the script running, it will have created
+    # a lock file with the pid of the instance in it. If we find this file,
+    # error out. There should not be more than one instance of mmlist running
+    # at one time.
+    global SCRIPT_LOCK
+    try:
+        fd = os.open(SCRIPT_LOCK, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0640)
+    except:
+        error_exit("Script lock file present. Another instance of the script "
+                + "is probably running.")
+    os.write(fd, str(os.getpid()))
+    os.close(fd)
+
     global MAILLISTS_DIR
+    if not os.path.isdir(MAILLISTS_DIR):
+        error_exit("MAILLISTS_DIR does not exists.")
+
     virtual, aliases = fill_table(MAILLISTS_DIR)
 
     for target in virtual.keys():
@@ -399,10 +470,12 @@ def main():
         list_targets(table)
     elif options.target != None:
         table = aliases if options.aliases else virtual
-        expand(options.target, options.recursive, table)
+        to_print = expand(options.target, options.recursive, table)
+        print "\n".join(to_print)
     elif options.expansion != None:
         table = aliases if options.aliases else virtual
-        reverse_expand(options.expansion, options.recursive, table)
+        to_print = reverse_expand(options.expansion, options.recursive, table)
+        print "\n".join(to_print)
     elif options.to_insert != None:
         email, entry = options.to_insert
         insert_email(email, entry)
@@ -410,22 +483,32 @@ def main():
         email, entry = options.to_delete
         delete_email(email, entry)
     elif options.real_sync:
-        global ACTUAL_VIRTUAL
-        actual_virtual = open(ACTUAL_VIRTUAL, 'w')
+        try:
+            global ACTUAL_VIRTUAL
+            actual_virtual = open(ACTUAL_VIRTUAL, 'w')
 
-        for target in virtual.keys():
-            expansions = ", ".join(virtual[target])
-            actual_virtual.write("%s\t\t\t%s\n" % (target, expansions))
+            for target in virtual.keys():
+                expansions = ", ".join(virtual[target])
+                actual_virtual.write("%s\t\t\t%s\n" % (target, expansions))
 
-        global ACTUAL_ALIASES
-        actual_aliases = open(ACTUAL_ALIASES, 'w')
+            global ACTUAL_ALIASES
+            actual_aliases = open(ACTUAL_ALIASES, 'w')
 
-        for target in aliases.keys():
-            expansions = ", ".join(aliases[target])
-            actual_aliases.write("%s:\t\t\t%s\n" % (target, expansions))
+            for target in aliases.keys():
+                expansions = ", ".join(aliases[target])
+                actual_aliases.write("%s:\t\t\t%s\n" % (target, expansions))
 
-        os.system("postmap " + ACTUAL_VIRTUAL)
-        os.system("newaliases")
+            actual_virtual.close()
+            actual_aliases.close()
+            
+            #print "postmap " + ACTUAL_VIRTUAL
+            #print "newaliases"
+            if subprocess.call(["/usr/sbin/postmap", ACTUAL_VIRTUAL]) != 0: raise Exception
+            if subprocess.call(["/usr/bin/newaliases"]) != 0: raise Exception
+        except:
+            error_exit("Could not sync with actual virtual and aliases files." +
+            "You probably didn't use sudo.")
+
     else:
         global VIRTUAL_OUTPUT
         virtual_file = open(VIRTUAL_OUTPUT, "w")
@@ -440,6 +523,11 @@ def main():
         for target in aliases.keys():
             expansions = ", ".join(aliases[target])
             aliases_file.write("%s:\t\t\t%s\n" % (target, expansions))
+
+        virtual_file.close()
+        aliases_file.close()
+
+    script_exit(0)
 
 if __name__ == "__main__":
     main()
