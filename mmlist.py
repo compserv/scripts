@@ -439,7 +439,7 @@ def init():
     global SCRIPT_LOCK
     try:
         fd = os.open(SCRIPT_LOCK, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0640)
-    except:
+    except Exception:
         error_exit("Script lock file present. Another instance of the script "
                 + "is probably running.")
     os.write(fd, str(os.getpid()))
@@ -462,9 +462,8 @@ def init():
     return virtual, aliases
 
 def main():
-    virtual, aliases = init()
-
     options, args = parse_options()
+    virtual, aliases = init()
     if options.list:
         table = aliases if options.aliases else virtual
         list_targets(table)
