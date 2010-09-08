@@ -4,7 +4,7 @@ import os
 from os.path import getsize, join
 import sys
 
-threshold = 350*1024*1024 #This is 95% of the mail quota of 400MB
+threshold = 900*1024*1024 #This is 90% of the mail quota of 1GB
 
 def sizeof_fmt(num):
     for x in ['bytes','KB','MB','GB','TB']:
