@@ -14,6 +14,8 @@ import ldap
 import ldap.modlist as modlist
 import copy
 
+import sync_virtual
+
 # FIXME: Make this parameter with default
 POSITIONS_FILE = "/home/hkn/compserv/positions"
 POSITIONS = []
@@ -349,39 +351,53 @@ def create_new_aliases(officers):
             aliases['act-auditors'].append(officer)
             aliases['tutoring-auditors'].append(officer)
         elif officer_position == 'compserv':
-            if 'root' not in aliases:
-                aliases['root'] = []
-            if 'hkn-ops' not in aliases:
-                aliases['hkn-ops'] = []
-            if 'hkn-osp' not in aliases:
-                aliases['hkn-osp'] = []
-            aliases['root'].append(officer)
-            aliases['hkn-ops'].append(officer)
-            aliases['hkn-osp'].append(officer)
+            #if 'root' not in aliases:
+            #    aliases['root'] = []
+            if 'ops' not in aliases:
+                aliases['ops'] = []
+            #if 'hkn-osp' not in aliases:
+            #    aliases['hkn-osp'] = []
+            #aliases['root'].append(officer)
+            aliases['ops'].append(officer)
+            #aliases['hkn-osp'].append(officer)
 
-    # Parse the file line by line, and if the line begins with one of the aliases
-    # above, then we should add the appropriate people
-    #position_prefix = re.compile('^[^:]-officers:')
-    for line in old.readlines():
-        #label = line.split(':')
-        # Changing this to work on virtual file, split first on whitespace
-        label = line.split()
-        if label and label[0] in aliases.keys():
-            # Should figure out which position it is and write out new officers
-            alias = label[0]
-            new.write(alias+'    ')
-            names = ' '.join(label[1:])
-            existing_officers = [existing_officer.strip() for existing_officer in names.split(',')]
-            for officer in aliases[alias]:
-                username = officer[1]
-                if username not in existing_officers:
-                    new.write(username+', ')
-            new.write(names+'\n')
-        else:
-            # Copy over old line
-            new.write(line)
-    new.close()
-    old.close()
+    # Done to interface with the new mailing list setup.
+    old_virtual, old_aliases = sync_virtual.init()
+    for alias in aliases.keys():
+        for officer in aliases[alias]:
+            username = officer[1]
+            if alias not in old_virtual:
+                print "ERROR: alias was not found: %s" % alias
+                sys.exit(1)
+            if username not in old_virtual[alias]:
+                print username
+                print alias
+                print old_virtual[alias]
+                sync_virtual.insert_email(username, alias)
+
+    ## Parse the file line by line, and if the line begins with one of the aliases
+    ## above, then we should add the appropriate people
+    ##position_prefix = re.compile('^[^:]-officers:')
+    #for line in old.readlines():
+    #    #label = line.split(':')
+    #    # Changing this to work on virtual file, split first on whitespace
+    #    label = line.split()
+    #    if label and label[0] in aliases.keys():
+    #        # Should figure out which position it is and write out new officers
+    #        alias = label[0]
+    #        new.write(alias+'    ')
+    #        names = ' '.join(label[1:])
+    #        existing_officers = [existing_officer.strip() for existing_officer in names.split(',')]
+    #        for officer in aliases[alias]:
+    #            username = officer[1]
+    #            if username not in existing_officers:
+    #                new.write(username+', ')
+    #        new.write(names+'\n')
+    #    else:
+    #        # Copy over old line
+    #        new.write(line)
+    #new.close()
+    #old.close()
 
 
 def chown_homes(name):
@@ -424,13 +440,15 @@ def main():
     officers, new_officers = parse(fname)
 
     for key in new_officers:
-        create_user(new_officers, key)
-        add_user_home(new_officers, key)
-        chown_homes(key)
+        #create_user(new_officers, key)
+        #add_user_home(new_officers, key)
+        #chown_homes(key)
+        set_group_membership(key, to_ldap_group(officers[key][2]))
+    for key in officers:
         set_group_membership(key, to_ldap_group(officers[key][2]))
 
     # Add people to the correct mailing lists:
-    create_new_aliases(officers)
+    #create_new_aliases(officers)
 
 if __name__ == "__main__":
     main()
