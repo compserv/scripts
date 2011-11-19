@@ -27,6 +27,7 @@ SCRIPT_HOME = "/home/hkn/compserv/mmlist"
 SCRIPT_LOCK = os.path.join(SCRIPT_HOME, "lock")
 
 MAILLISTS_DIR = os.path.join(SCRIPT_HOME, "new-maillists")
+CURRENT_MLISTS_DIR = os.path.join(MAILLISTS_DIR, 'current')
 VIRTUAL_OUTPUT = os.path.join(SCRIPT_HOME, "virtual.sample")
 ALIASES_OUTPUT = os.path.join(SCRIPT_HOME, "aliases.sample")
 
@@ -34,6 +35,8 @@ ACTUAL_VIRTUAL = '/etc/postfix/virtual'
 ACTUAL_ALIASES = '/etc/aliases'
 
 ENTRIES_PATH = set([])
+
+class NoExpansionException(Exception): pass
 
 def script_exit(error_code):
     try:
@@ -132,7 +135,7 @@ def read_entry(entry_path):
 
     # If entry file is empty, print error and exit
     if not addresses:
-        error_exit("Following entry had no expansions: %s" % entry)
+        raise NoExpansionException("Following entry had no expansions: %s" % entry)
 
     fcntl.lockf(f.fileno(), fcntl.LOCK_UN)
     f.close()
@@ -208,7 +211,7 @@ def read_directory(directory_path):
     entries, rulesets, aliases_rulesets, addons, directories = list_files(directory_path)
 
     if not entries and not directories:
-        error_exit("Following directory had no expansions: %s" % directory)
+        raise NoExpansionException("Following directory had no expansions: %s" % directory)
 
     return ({directory: entries + directories}, {})
 
@@ -239,7 +242,7 @@ def read_addon(addon_path, dir_virtual):
             addresses.append(line)
 
     if not addresses:
-        error_exit("Following addon had no expansions: %s" % addon)
+        raise NoExpansionException("Following addon had no expansions: %s" % addon)
 
     fcntl.lockf(f.fileno(), fcntl.LOCK_UN)
     f.close()
@@ -313,6 +316,10 @@ def parse_options():
     parser.add_option("-z", action="store_true", dest="real_sync",
             default=False, help="syncs directly to the actual file instead" +
             "of syncing to the test aliases and virtual file.")
+    parser.add_option('-c', action='store_true', dest='clean',
+            default=False, help='cleans the mmlist lock file.')
+    parser.add_option('-w', dest='to_wipe', metavar='mailing list',
+            help="wipe the mailing list given (must be entry type)")
 
     options, args = parser.parse_args()
     return (options, args)
@@ -431,6 +438,16 @@ def delete_email(email, entry):
     f.writelines(lines)
     f.close()
 
+def wipe_current_mlist(mlist):
+    mlist_path = os.path.join(CURRENT_MLISTS_DIR, mlist)
+
+    if not os.path.isfile(mlist_path):
+        raise Exception("Could not find entry file: %s" % mlist)
+
+    f = open(mlist_path, 'w')
+    print >>f, 'devnull'
+    f.close()
+
 def init():
     # If there is another instance of the script running, it will have created
     # a lock file with the pid of the instance in it. If we find this file,
@@ -453,16 +470,21 @@ def init():
 
     for target in virtual.keys():
         if not virtual[target]:
-            error_exit("Following target has no expansion: %s" % target)
+            raise NoExpansionException("Following target has no expansion: %s" % target)
 
     for target in aliases.keys():
         if not aliases[target]:
-            error_exit("Following target has no expansion: %s" % target)
+            raise NoExpansionException("Following target has no expansion: %s" % target)
     
     return virtual, aliases
 
 def main():
     options, args = parse_options()
+
+    if options.clean:
+        os.remove(SCRIPT_LOCK)
+        script_exit(0)
+
     virtual, aliases = init()
     if options.list:
         table = aliases if options.aliases else virtual
@@ -481,6 +503,9 @@ def main():
     elif options.to_delete != None:
         email, entry = options.to_delete
         delete_email(email, entry)
+    elif options.to_wipe != None:
+        mlist = options.to_wipe
+        wipe_mlist(mlist)
     elif options.real_sync:
         try:
             global ACTUAL_VIRTUAL
