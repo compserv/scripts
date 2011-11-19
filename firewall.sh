@@ -46,7 +46,9 @@ HTTPS_PORT=443
 HTTP_AUTH_PORT=4444
 BOOTPC_PORT=68
 NTP_PORT=123
-
+RSYNC_PORT=873
+IRC_PORT=6697
+QWEBIRC_PORT=9090
 
 # Flush old rules.
 $IPT -F
@@ -128,6 +130,15 @@ $IPT -A services -p udp --dport $BOOTPC_PORT -j ACCEPT
 
 # Allow ntp.
 $IPT -A services -p udp --dport $NTP_PORT -j ACCEPT
+
+# Allow rsync
+$IPT -A services -p tcp --dport $RSYNC_PORT -j ACCEPT
+
+# Allow IRC
+$IPT -A services -p tcp --dport $IRC_PORT -j ACCEPT
+
+# Allow qwebirc
+$IPT -A services -p tcp --dport $QWEBIRC_PORT -j ACCEPT
 
 # Log and drop everything else.
 $IPT -A services -j log-and-drop
