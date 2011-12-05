@@ -38,7 +38,7 @@ def check_root():
     return os.geteuid() == 0
 
 # Returns true if login is already the name of a mailing list.
-def check_maillist(login):
+def check_maillists(login):
     cmd = "/home/hkn/compserv/scripts/mmlist.py -l"
     p = Popen(cmd, shell=True, stdout=PIPE)
     output = p.stdout
