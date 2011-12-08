@@ -39,6 +39,7 @@ LOCAL_BROADCAST="128.32.112.255"
 SSH_PORT=22
 LDAP_PORT=389
 IMAP_PORT=143
+IMAPS_PORT=993
 SMTP_PORT=25
 SMTP_FORWARD_PORT=465
 HTTP_PORT=80
@@ -112,6 +113,8 @@ $IPT -A services -p tcp --dport $SSH_PORT \
 $IPT -A services -p tcp --dport $LDAP_PORT -j ACCEPT
 # Allow imap.
 $IPT -A services -p tcp --dport $IMAP_PORT -j ACCEPT
+# Allow imaps.
+$IPT -A services -p tcp --dport $IMAPS_PORT -j ACCEPT
 
 # Allow smtp.
 $IPT -A services -p tcp --dport $SMTP_PORT -j ACCEPT
