@@ -487,15 +487,16 @@ def mod_user(login, comm, is_cmember, not_current):
     set_mail_membership(login, comm, is_cmember, not_current)
 
 def wipe_current_mlists():
-    mlists = ['current-bridge', 'current-cmembers', 'current-compserv',
-    'current-non-pvp', 'current-officers', 'current-pres', 'current-studrel',
-    'current-vp']
+    #mlists = ['current-bridge', 'current-cmembers', 'current-compserv',
+    #'current-non-pvp', 'current-officers', 'current-pres', 'current-studrel',
+    #'current-vp']
 
-    for mlist in mlists:
-        try:
-            mmlist.wipe_current_mlist(mlist)
-        except:
-            pass
+    #for mlist in mlists:
+    #    try:
+    #        mmlist.wipe_current_mlist(mlist)
+    #    except:
+    #        pass
+    mmlist.wipe_all_current_mlists()
 
 # Backs up all files that will be edited
 def backup():

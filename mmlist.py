@@ -438,6 +438,11 @@ def delete_email(email, entry):
     f.writelines(lines)
     f.close()
 
+def wipe_all_current_mlists():
+    lists = os.listdir(CURRENT_MLISTS_DIR)
+    for list in lists:
+        wipe_current_mlist(list)
+
 def wipe_current_mlist(mlist):
     mlist_path = os.path.join(CURRENT_MLISTS_DIR, mlist)
 
