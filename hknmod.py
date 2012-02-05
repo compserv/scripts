@@ -424,7 +424,8 @@ def set_mail_membership(login, comm, is_cmember, not_current):
         else:
             aliases.add('current-officers')
 
-        aliases.add('current-' + comm)
+        if comm == 'compserv' or comm == 'studrel' or comm == 'bridge' or comm == 'pres' or comm == 'vp':
+            aliases.add('current-' + comm)
         
     for alias in aliases:
         if alias not in old_virtual:
