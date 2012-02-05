@@ -403,7 +403,8 @@ def insert_email(email, entry):
     lines = f.readlines()
     for line in lines:
         if email == line.strip():
-            error_exit("Following email already exists in entry: %s" % email)
+            #error_exit("Following email %s already exists in entry %s" % (email, entry))
+            return "Following email %s already exists in entry %s" % (email, entry)
 
     last_line = lines[len(lines)-1]
     if last_line[len(last_line)-1] != '\n':
@@ -441,7 +442,8 @@ def delete_email(email, entry):
 def wipe_all_current_mlists():
     lists = os.listdir(CURRENT_MLISTS_DIR)
     for list in lists:
-        wipe_current_mlist(list)
+        if list != 'current-committees':
+            wipe_current_mlist(list)
 
 def wipe_current_mlist(mlist):
     mlist_path = os.path.join(CURRENT_MLISTS_DIR, mlist)
