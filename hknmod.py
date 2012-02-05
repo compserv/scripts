@@ -424,15 +424,13 @@ def set_mail_membership(login, comm, is_cmember, not_current):
         else:
             aliases.add('current-officers')
 
-        if comm == 'compserv' or comm == 'studrel' or comm == 'bridge' or comm == 'pres' or comm == 'vp':
-            aliases.add('current-' + comm)
+        aliases.add('current-' + comm)
         
     for alias in aliases:
         if alias not in old_virtual:
             warn_and_raise_nue('Alias for committee (%s) could not be found.' % alias)
 
-        if login not in old_virtual[comm]:
-            mmlist.insert_email(login, alias)
+        mmlist.insert_email(login, alias)
 
 def unset_mail_membership(login, comm, is_cmember, not_current):
     old_virtual, old_aliases = mmlist.init()
