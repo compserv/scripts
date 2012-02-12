@@ -313,6 +313,9 @@ def parse_options():
             help="deletes the email from the given target. This doesn't " + 
             "actually delete the entry but only comments it out. Works only " +
             "with virtual file.")
+    parser.add_option("-f", dest="mlist_dir", metavar="directory",
+            help="Indicate the directory under which mailing lists are specified, " +
+            "default is new-maillists")
     parser.add_option("-z", action="store_true", dest="real_sync",
             default=False, help="syncs directly to the actual file instead" +
             "of syncing to the test aliases and virtual file.")
@@ -491,6 +494,9 @@ def main():
     if options.clean:
         os.remove(SCRIPT_LOCK)
         script_exit(0)
+    if options.mlist_dir != None:
+        global MAILLISTS_DIR 
+        MAILLISTS_DIR = os.path.join(SCRIPT_HOME, options.mlist_dir)
 
     virtual, aliases = init()
     if options.list:
