@@ -26,7 +26,7 @@ from optparse import OptionParser
 SCRIPT_HOME = "/home/hkn/compserv/mmlist"
 SCRIPT_LOCK = os.path.join(SCRIPT_HOME, "lock")
 
-MAILLISTS_DIR = os.path.join(SCRIPT_HOME, "new-maillists")
+MAILLISTS_DIR = os.path.join(SCRIPT_HOME, "maillists")
 CURRENT_MLISTS_DIR = os.path.join(MAILLISTS_DIR, 'current')
 VIRTUAL_OUTPUT = os.path.join(SCRIPT_HOME, "virtual.sample")
 ALIASES_OUTPUT = os.path.join(SCRIPT_HOME, "aliases.sample")
@@ -315,7 +315,7 @@ def parse_options():
             "with virtual file.")
     parser.add_option("-f", dest="mlist_dir", metavar="directory",
             help="Indicate the directory under which mailing lists are specified, " +
-            "default is new-maillists")
+            "default is maillists")
     parser.add_option("-z", action="store_true", dest="real_sync",
             default=False, help="syncs directly to the actual file instead" +
             "of syncing to the test aliases and virtual file.")
