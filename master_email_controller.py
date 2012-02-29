@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-#TODO: write these two functions
 
-# options needed:
+# Options needed:
 # -l something to list all the mailing lists
 # -b (list all lists a given member is on)
+# -r makes -b recursive
 
 import subprocess as sp
 from optparse import OptionParser
@@ -17,11 +17,40 @@ def parse_options():
     parser.add_option('-l', '--list',  action='store_true', dest='list', default=False,
             help='list all mailing lists')
 
+    parser.add_option('-r', '--recursive',  action='store_true', dest='recursive', default=False,
+            help='make -b act recursively')
+
     parser.add_option('-b', dest='expansion', metavar='expansion',
-            help='reverse expand expansion, find targets expansion belongs to')
+            help='list mailing lists that the specified address (either an individual\'s email or another list) is on')
 
     options, args = parser.parse_args()
     return (options, args)
+
+def runproc(cmd, indata=None):
+    proc = sp.Popen('python ' + cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
+    if indata is not None:
+        proc.communicate(input=indata)
+    out = proc.stdout.read()
+    err = proc.stderr.read()
+    return out, err
+
+def mmlist(*args):
+    return runproc(MMLIST_LOCATION + "mmlist.py " + " ".join(args))
+
+def mmlist_list_lists():
+    return mmlist("-l")
+
+def mailman(*args, **keywords):
+    if "indata" in keywords.keys():
+        return runproc(MAILMAN_LOCATION + " ".join(args), indata = keywords["indata"])
+    else:
+        return runproc(MAILMAN_LOCATION + " ".join(args))
+
+def mailman_list_lists():
+    return mailman("list_lists")
+
+def mailman_add_member(mlist, member):
+    return mailman("add_members", mlist, indata=member)
 
 def main():
     options, args = parse_options()
@@ -29,16 +58,32 @@ def main():
     #print 'args:', args
 
     if options.list:
-        print 'there is the list option'
-        print options.list
+        mmlist_out, mmlist_err = mmlist_list_lists()
+        mailman_out, mailman_err = mailman_list_lists()
+
+        out = ''
+        if not mmlist_err and not mailman_err:
+            print mmlist_out, mailman_out
+        elif not mailman_err:
+            print 'Mailman Error:'
+            print mailman_err
+        elif not mmlist_err:
+            print 'mmlist Error:'
+            print mmlist_err
+        else:
+            print mmlist_err, mailman_err
     elif options.expansion != None:
         email = options.expansion
         full_email = options.expansion
         if '@' not in email:
             full_email = email + '@hkn.eecs.berkeley.edu'
 
+        rflag = ""
+        if options.recursive:
+            rflag = "-r "
+
         #print email, full_email
-        mmlist_proc = sp.Popen('python ' + MMLIST_LOCATION + 'mmlist.py -b ' + email, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
+        mmlist_proc = sp.Popen('python ' + MMLIST_LOCATION + 'mmlist.py ' + rflag + '-b ' + email, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
         mmlist_out = mmlist_proc.stdout.read()
         mmlist_err = mmlist_proc.stderr.read()
 
