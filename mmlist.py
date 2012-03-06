@@ -21,6 +21,7 @@ import fcntl
 import os
 import subprocess
 import sys
+import shutil
 from optparse import OptionParser
 
 SCRIPT_HOME = "/home/hkn/compserv/mmlist"
@@ -28,6 +29,7 @@ SCRIPT_LOCK = os.path.join(SCRIPT_HOME, "lock")
 
 MAILLISTS_DIR = os.path.join(SCRIPT_HOME, "maillists")
 CURRENT_MLISTS_DIR = os.path.join(MAILLISTS_DIR, 'current')
+PREVIOUS_MLISTS_DIR = os.path.join(MAILLISTS_DIR, 'previous')
 VIRTUAL_OUTPUT = os.path.join(SCRIPT_HOME, "virtual.sample")
 ALIASES_OUTPUT = os.path.join(SCRIPT_HOME, "aliases.sample")
 
@@ -323,6 +325,9 @@ def parse_options():
             default=False, help='cleans the mmlist lock file.')
     parser.add_option('-w', dest='to_wipe', metavar='mailing list',
             help="wipe the mailing list given (must be entry type)")
+    parser.add_option("--wipe-current", action="store_true", dest="wipe_all", 
+            default=False, help="wipe all the current-* mailing lists, after " +
+            "copying contents to previous-*")
 
     options, args = parser.parse_args()
     return (options, args)
@@ -445,8 +450,10 @@ def delete_email(email, entry):
 def wipe_all_current_mlists():
     lists = os.listdir(CURRENT_MLISTS_DIR)
     for list in lists:
-        if list != 'current-committees':
-            wipe_current_mlist(list)
+        #if list != 'current-committees': Moved current-committees out of this
+        # directory
+        move_current_to_previous(list)
+        wipe_current_mlist(list)
 
 def wipe_current_mlist(mlist):
     mlist_path = os.path.join(CURRENT_MLISTS_DIR, mlist)
@@ -457,6 +464,16 @@ def wipe_current_mlist(mlist):
     f = open(mlist_path, 'w')
     print >>f, 'devnull'
     f.close()
+
+def move_current_to_previous(mlist):
+    mlist_path = os.path.join(CURRENT_MLISTS_DIR, mlist)
+    previous_name = "previous-" + "-".join(mlist.split("-")[1:])
+    new_path = os.path.join(PREVIOUS_MLISTS_DIR, previous_name)
+    if not os.path.isfile(mlist_path):
+        raise Exception("Could not find entry file: %s" % mlist)
+
+    shutil.copy(mlist_path, new_path)
+    
 
 def init():
     # If there is another instance of the script running, it will have created
@@ -523,6 +540,8 @@ def main():
     elif options.to_wipe != None:
         mlist = options.to_wipe
         wipe_mlist(mlist)
+    elif options.wipe_all:
+        wipe_all_current_mlists()
     elif options.real_sync:
         try:
             global ACTUAL_VIRTUAL
