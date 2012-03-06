@@ -496,7 +496,11 @@ def main():
         script_exit(0)
     if options.mlist_dir != None:
         global MAILLISTS_DIR 
+        global CURRENT_MLISTS_DIR 
+        global PREVIOUS_MLISTS_DIR
         MAILLISTS_DIR = os.path.join(SCRIPT_HOME, options.mlist_dir)
+        CURRENT_MLISTS_DIR = os.path.join(MAILLISTS_DIR, 'current')
+        PREVIOUS_MLISTS_DIR = os.path.join(MAILLISTS_DIR, 'previous')
 
     virtual, aliases = init()
     if options.list:
