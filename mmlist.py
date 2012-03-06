@@ -314,8 +314,8 @@ def parse_options():
             "actually delete the entry but only comments it out. Works only " +
             "with virtual file.")
     parser.add_option("-f", dest="mlist_dir", metavar="directory",
-            help="Indicate the directory under which mailing lists are specified, " +
-            "default is maillists")
+            help="Indicate the directory under which mailing lists are " + 
+            "specified, default is maillists")
     parser.add_option("-z", action="store_true", dest="real_sync",
             default=False, help="syncs directly to the actual file instead" +
             "of syncing to the test aliases and virtual file.")
