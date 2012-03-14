@@ -302,9 +302,11 @@ def parse_options():
             default=False,
             help="make expansion or reverse expansion recursive")
     parser.add_option("--no-error", action="store_true", dest="no_error",
-            default=False,
-            help="if a target cannot be found during expansion or reverse" +
-            "expansion, exit quietly instead of erroring out")
+            default=False, help="if a target cannot be found during expansion" +
+            " or reverse expansion, exit quietly instead of erroring out")
+    parser.add_option("--diff", action="store_true", dest="diff",
+            default=False, help="Find changes that would be made if mmlist.py" +
+            " -z is run")
     parser.add_option("-e", dest="target", metavar="target",
             help="expand target")
     parser.add_option("-b", dest="expansion", metavar="expansion",
@@ -523,6 +525,7 @@ def init():
     return virtual, aliases
 
 def main():
+    global VIRTUAL_OUTPUT, ALIASES_OUTPUT, ACTUAL_VIRTUAL, ACTUAL_ALIASES
     options, args = parse_options()
 
     if options.clean:
@@ -564,14 +567,12 @@ def main():
         wipe_all_current_mlists()
     elif options.real_sync:
         try:
-            global ACTUAL_VIRTUAL
             actual_virtual = open(ACTUAL_VIRTUAL, 'w')
 
             for target in virtual.keys():
                 expansions = ", ".join(virtual[target])
                 actual_virtual.write("%s\t\t\t%s\n" % (target, expansions))
 
-            global ACTUAL_ALIASES
             actual_aliases = open(ACTUAL_ALIASES, 'w')
 
             for target in aliases.keys():
@@ -590,10 +591,8 @@ def main():
             "You probably didn't use sudo.")
 
     else:
-        global VIRTUAL_OUTPUT
         virtual_file = open(VIRTUAL_OUTPUT, "w")
 
-        global ALIASES_OUTPUT
         aliases_file = open(ALIASES_OUTPUT, "w")
 
         for target in virtual.keys():
@@ -606,6 +605,15 @@ def main():
 
         virtual_file.close()
         aliases_file.close()
+
+    if options.diff:
+        p1 = subprocess.Popen(["/usr/bin/diff", ACTUAL_ALIASES, ALIASES_OUTPUT], stdout=subprocess.PIPE)
+        p1.wait()
+        print p1.communicate()[0]
+        p2 = subprocess.Popen(["/usr/bin/diff", ACTUAL_VIRTUAL, VIRTUAL_OUTPUT], stdout=subprocess.PIPE)
+        p2.wait()
+        print p2.communicate()[0]
+        
 
     script_exit(0)
 
