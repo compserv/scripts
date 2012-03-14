@@ -404,7 +404,7 @@ def reverse_expand(to_lookup, recursive, table, no_error=False):
         else:
             error_exit("Could not find expansion: %s" % to_lookup)
 
-def insert_email(email, entry):
+def insert_email(email, entry, no_error=False):
     global ENTRIES_PATH
     email = email.strip()
     entry_path = ""
@@ -414,14 +414,17 @@ def insert_email(email, entry):
             entry_path = path
 
     if entry_path == "":
+        if no_error:
+            return
         error_exit("Could not find entry file: %s" % entry)
 
     f = open(entry_path, 'a+')
     lines = f.readlines()
     for line in lines:
         if email == line.strip():
-            #error_exit("Following email %s already exists in entry %s" % (email, entry))
-            return "Following email %s already exists in entry %s" % (email, entry)
+            if no_error:
+                return
+            error_exit("Following email %s already exists in entry %s" % (email, entry))
 
     last_line = lines[len(lines)-1]
     if last_line[len(last_line)-1] != '\n':
@@ -430,7 +433,7 @@ def insert_email(email, entry):
     f.write(email + '\n')
     f.close()
 
-def delete_email(email, entry):
+def delete_email(email, entry, no_error=False):
     global ENTRIES_PATH
     email = email.strip()
     entry_path = ""
@@ -440,6 +443,8 @@ def delete_email(email, entry):
             entry_path = path
 
     if entry_path == "":
+        if no_error:
+            return
         error_exit("Could not find entry file: %s" % entry)
 
     f = open(entry_path, 'r+')
@@ -449,6 +454,9 @@ def delete_email(email, entry):
         if email == line.strip():
             email_index = lines.index(line)
     if email_index == -1:
+        if no_erorr:
+            f.close()
+            return
         error_exit("Following email doesn't exists in entry: %s" % email)
 
     lines[email_index] = '#' + lines[email_index]
@@ -545,10 +553,10 @@ def main():
             print "\n".join(to_print)
     elif options.to_insert != None:
         email, entry = options.to_insert
-        insert_email(email, entry)
+        insert_email(email, entry, options.no_error)
     elif options.to_delete != None:
         email, entry = options.to_delete
-        delete_email(email, entry)
+        delete_email(email, entry, options.no_error)
     elif options.to_wipe != None:
         mlist = options.to_wipe
         wipe_mlist(mlist)
