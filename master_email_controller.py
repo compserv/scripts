@@ -70,9 +70,21 @@ def main():
         for addr in mailman_members:
             print addr
     elif options.to_insert != None:
-        # Fill this out
+        email, mlist = options.to_insert
+        mmlist_err = ""
+        try:
+            mmlist.add_member(email, mlist)
+            return
+        except Exception as expt:
+            mmlist_err = "\n".join(expt.args)
+        try:
+            mailman.add_member(email, mlist)
+            return
+        except Exception as expt:
+            raise Exception("Could not insert into " + mlist + "\n mmlist:\n" + 
+                mmlist_err + "\n\nMailman:\n" + "\n".join(expt.args))
     elif options.to_delete != None:
-        # Fill this out
+        email, mlist = options.to_delete
     else:
         print parser.print_help()
 
@@ -137,7 +149,8 @@ class mailman:
 
     @classmethod
     def add_member(cls, mlist, member):
-        return cls.invoke("add_members", "-r", "-",  mlist, indata=member)
+        return cls.invoke("add_members", "--welcome-msg=n", "--admin-notify=n",
+            "n", "-r", "-",  mlist, indata=member)
 
     @classmethod
     def find_member(cls, member):
