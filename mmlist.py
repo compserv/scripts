@@ -301,6 +301,10 @@ def parse_options():
     parser.add_option("-r", action="store_true", dest="recursive",
             default=False,
             help="make expansion or reverse expansion recursive")
+    parser.add_option("--no-error", action="store_true", dest="no_error",
+            default=False,
+            help="if a target cannot be found during expansion or reverse" +
+            "expansion, exit quietly instead of erroring out")
     parser.add_option("-e", dest="target", metavar="target",
             help="expand target")
     parser.add_option("-b", dest="expansion", metavar="expansion",
@@ -337,7 +341,7 @@ def list_targets(table):
     to_print.sort()
     print "\n".join(to_print)
 
-def expand(to_lookup, recursive, table):
+def expand(to_lookup, recursive, table, no_error=False):
     # table = aliases or virtual table list
     table_keys = table.keys()
 
@@ -362,9 +366,12 @@ def expand(to_lookup, recursive, table):
         to_print.sort()
         return to_print
     else:
-        error_exit("Could not find target: %s" % to_lookup)
+        if no_error:
+            return []
+        else:
+            error_exit("Could not find target: %s" % to_lookup)
 
-def reverse_expand(to_lookup, recursive, table):
+def reverse_expand(to_lookup, recursive, table, no_error=False):
     # table = aliases or virtual table list
     all_expansions = reduce(list.__add__, table.values()) if table.values() else []
     table_items = table.items()
@@ -392,7 +399,10 @@ def reverse_expand(to_lookup, recursive, table):
         to_print.sort()
         return to_print
     else:
-        error_exit("Could not find expansion: %s" % to_lookup)
+        if no_error:
+            return []
+        else:
+            error_exit("Could not find expansion: %s" % to_lookup)
 
 def insert_email(email, entry):
     global ENTRIES_PATH
@@ -525,12 +535,14 @@ def main():
         list_targets(table)
     elif options.target != None:
         table = aliases if options.aliases else virtual
-        to_print = expand(options.target, options.recursive, table)
-        print "\n".join(to_print)
+        to_print = expand(options.target, options.recursive, table, options.no_error)
+        if len(to_print) > 0:
+            print "\n".join(to_print)
     elif options.expansion != None:
         table = aliases if options.aliases else virtual
-        to_print = reverse_expand(options.expansion, options.recursive, table)
-        print "\n".join(to_print)
+        to_print = reverse_expand(options.expansion, options.recursive, table, options.no_error)
+        if len(to_print) > 0:
+            print "\n".join(to_print)
     elif options.to_insert != None:
         email, entry = options.to_insert
         insert_email(email, entry)
