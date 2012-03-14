@@ -454,7 +454,7 @@ def delete_email(email, entry, no_error=False):
         if email == line.strip():
             email_index = lines.index(line)
     if email_index == -1:
-        if no_erorr:
+        if no_error:
             f.close()
             return
         error_exit("Following email doesn't exists in entry: %s" % email)
