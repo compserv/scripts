@@ -51,9 +51,7 @@ def main():
             print mlist
     elif options.expansion != None:
         email = options.expansion
-        full_email = options.expansion
-        if '@' not in email:
-            full_email = email + '@hkn.eecs.berkeley.edu'
+        full_email = get_full_email(email)
 
         mmlist_lists = mmlist.find_member(email, options.recursive)
         mailman_lists = mailman.find_member(full_email)
@@ -71,25 +69,34 @@ def main():
             print addr
     elif options.to_insert != None:
         email, mlist = options.to_insert
+        full_email = get_full_email(email)
         mmlist_err = ""
         try:
-            mmlist.add_member(email, mlist)
+            mmlist.add_member(mlist, email)
             return
         except Exception as expt:
             mmlist_err = "\n".join(expt.args)
         try:
-            mailman.add_member(email, mlist)
+            mailman.add_member(mlist, full_email)
             return
         except Exception as expt:
             raise Exception("Could not insert into " + mlist + "\n mmlist:\n" + 
                 mmlist_err + "\n\nMailman:\n" + "\n".join(expt.args))
     elif options.to_delete != None:
         email, mlist = options.to_delete
+        full_email = get_full_email(email)
+        mmlist.delete_member(mlist, email)
+        mailman.delete_member(mlist, full_email)
     else:
         print parser.print_help()
 
 
 # Helper functions!
+
+def get_full_email(email):
+    if '@' in email:
+        return email
+    return email + "@hkn.eecs.berkeley.edu"
 
 def runproc(cmd, indata=None):
     proc = sp.Popen('python ' + cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
@@ -113,7 +120,11 @@ class mmlist:
 
     @classmethod
     def add_member(cls, mlist, member):
-        return cls.invoke("-i", member, mlist)
+        cls.invoke("-i", member, mlist)
+
+    @classmethod
+    def delete_member(cls, mlist, member):
+        cls.invoke("--no-error", "-d", member, mlist)
 
     @classmethod
     def find_member(cls, member, recursive):
@@ -149,8 +160,12 @@ class mailman:
 
     @classmethod
     def add_member(cls, mlist, member):
-        return cls.invoke("add_members", "--welcome-msg=n", "--admin-notify=n",
+        cls.invoke("add_members", "--welcome-msg=n", "--admin-notify=n",
             "n", "-r", "-",  mlist, indata=member)
+
+    @classmethod
+    def delete_member(cls, mlist, member):
+        cls.invoke("remove_members", "-nN", mlist, member)
 
     @classmethod
     def find_member(cls, member):
