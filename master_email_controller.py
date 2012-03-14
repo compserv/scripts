@@ -28,6 +28,12 @@ def parse_options():
     parser.add_option('-e', dest='target', metavar='target',
             help='list members of a mailing list')
 
+    parser.add_option('-i', dest="to_insert", metavar="email entry", nargs=2,
+            help="insert email into mailing list entry")
+    
+    parser.add_option('-d', dest="to_delete", metavar="email entry", nargs=2,
+            help="delete email from mailing list entry")
+
     options, args = parser.parse_args()
     return (options, args)
 
@@ -63,6 +69,10 @@ def main():
             print addr
         for addr in mailman_members:
             print addr
+    elif options.to_insert != None:
+        # Fill this out
+    elif options.to_delete != None:
+        # Fill this out
     else:
         print parser.print_help()
 
@@ -127,7 +137,7 @@ class mailman:
 
     @classmethod
     def add_member(cls, mlist, member):
-        return cls.invoke("add_members", mlist, indata=member)
+        return cls.invoke("add_members", "-r", "-",  mlist, indata=member)
 
     @classmethod
     def find_member(cls, member):
