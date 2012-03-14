@@ -55,11 +55,10 @@ def script_exit(error_code):
     except:
         pass
 
-    sys.exit(error_code)
 
 def error_exit(str):
-    print "[ERROR] %s" % str
     script_exit(1)
+    raise Exception(str)
 
 def clean_lines(lines):
     """
@@ -511,6 +510,7 @@ def main():
     if options.clean:
         os.remove(SCRIPT_LOCK)
         script_exit(0)
+        return
     if options.mlist_dir != None:
         global MAILLISTS_DIR 
         global CURRENT_MLISTS_DIR 
