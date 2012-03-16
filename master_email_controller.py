@@ -21,17 +21,17 @@ def parse_options():
     parser.add_option('-r', '--recursive',  action='store_true', dest='recursive', default=False,
             help='make -b act recursively')
 
-    parser.add_option('-b', dest='expansion', metavar='expansion',
+    parser.add_option('-b', '--reverse-expand', dest='expansion', metavar='email',
             help='list mailing lists that the specified address (either an ' +
             'individual\'s email or another list) is on')
 
-    parser.add_option('-e', dest='target', metavar='target',
+    parser.add_option('-e', '--expand-list', dest='target', metavar='target',
             help='list members of a mailing list')
 
-    parser.add_option('-i', dest="to_insert", metavar="email entry", nargs=2,
+    parser.add_option('-i', '--insert', dest="to_insert", metavar="email entry", nargs=2,
             help="insert email into mailing list entry")
     
-    parser.add_option('-d', dest="to_delete", metavar="email entry", nargs=2,
+    parser.add_option('-d', '--delete', dest="to_delete", metavar="email entry", nargs=2,
             help="delete email from mailing list entry")
 
     options, args = parser.parse_args()
@@ -61,16 +61,14 @@ def main():
         for mlist in mailman_lists:
             print mlist
     elif options.target != None:
-        mmlist_members = mmlist.expand_list(options.target, options.recursive)
-        mailman_members = mailman.expand_list(options.target)
-        for addr in mmlist_members:
-            print addr
-        for addr in mailman_members:
+        members = mmlist.expand_list(options.target, options.recursive)
+        if len(members) == 0:
+            members = mailman.expand_list(options.target)
+        for addr in members:
             print addr
     elif options.to_insert != None:
         email, mlist = options.to_insert
         full_email = get_full_email(email)
-        mmlist_err = ""
         try:
             mmlist.add_member(mlist, email)
             return
@@ -121,10 +119,12 @@ class mmlist:
     @classmethod
     def add_member(cls, mlist, member):
         cls.invoke("-i", member, mlist)
+        cls.invoke("-z")
 
     @classmethod
     def delete_member(cls, mlist, member):
         cls.invoke("--no-error", "-d", member, mlist)
+        cls.invoke("-z")
 
     @classmethod
     def find_member(cls, member, recursive):
