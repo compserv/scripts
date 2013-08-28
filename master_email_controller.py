@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# Author: Ram Kandasamy Spring 2012
 
 # Options needed:
 # -l something to list all the mailing lists

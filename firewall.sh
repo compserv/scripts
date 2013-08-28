@@ -38,6 +38,7 @@ LOCAL_BROADCAST="128.32.112.255"
 # Service ports.
 SSH_PORT=22
 LDAP_PORT=389
+LDAPS_PORT=636
 IMAP_PORT=143
 IMAPS_PORT=993
 SMTP_PORT=25
@@ -105,12 +106,14 @@ $IPT -N services
 
 # Allow 3 ssh attempts per IP address per minute.
 $IPT -A services -p tcp --dport $SSH_PORT \
--m recent --update --seconds 60 --hitcount 3 -j log-and-drop
+-m recent --update --seconds 60 --hitcount 10 -j log-and-drop
 $IPT -A services -p tcp --dport $SSH_PORT \
 -m recent --set -j ACCEPT
 
 # Allow ldap.
 $IPT -A services -p tcp --dport $LDAP_PORT -j ACCEPT
+# Allow ldaps.
+$IPT -A services -p tcp --dport $LDAPS_PORT -j ACCEPT
 # Allow imap.
 $IPT -A services -p tcp --dport $IMAP_PORT -j ACCEPT
 # Allow imaps.

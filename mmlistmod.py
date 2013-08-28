@@ -332,9 +332,11 @@ def parse_options():
             default=False, help='cleans the mmlist lock file.')
     parser.add_option('-w', dest='to_wipe', metavar='mailing list',
             help="wipe the mailing list given (must be entry type)")
-    parser.add_option("--wipe-current", action="store_true", dest="wipe_all", 
-            default=False, help="wipe all the current-* mailing lists, after " +
-            "copying contents to previous-*")
+    parser.add_option("--wipe-current", dest="wipe_all", metavar='MAILLIST',
+            help="wipe all the current-* mailing lists, after " +
+            "copying contents to previous-* and to MAILLIST-*. " + 
+            "MAILLIST should be in {SEMESTER}{YEAR} (for example spring2013) format. " +
+            "These lists will be created if they don't exist and overwritten if they do.")
 
     options, args = parser.parse_args()
     return (options, args)
@@ -468,12 +470,14 @@ def delete_email(email, entry, no_error=False):
     f.writelines(lines)
     f.close()
 
-def wipe_all_current_mlists():
+# Wipes all current mailling lists after saving them to previous-* and mlist-*
+def wipe_all_current_mlists(mlist):
     lists = os.listdir(CURRENT_MLISTS_DIR)
     for list in lists:
         #if list != 'current-committees': Moved current-committees out of this
         # directory
         move_current_to_previous(list)
+        move_current_to_mlist_name(list, mlist)
         wipe_current_mlist(list)
 
 def wipe_current_mlist(mlist):
@@ -494,7 +498,18 @@ def move_current_to_previous(mlist):
         raise Exception("Could not find entry file: %s" % mlist)
 
     shutil.copy(mlist_path, new_path)
-    
+
+def move_current_to_mlist_name(mlist, mlist_name):
+    mlist_path = os.path.join(CURRENT_MLISTS_DIR, mlist)
+    previous_name = mlist_name + "-" + "-".join(mlist.split("-")[1:])
+    mlist_name_dir = os.path.join(MAILLISTS_DIR, 'past', mlist_name)
+    if not os.path.isdir(mlist_name_dir):
+        # Make the mlist_name directory if it doesn't exists
+        os.makedirs(mlist_name_dir)
+    new_path = os.path.join(mlist_name_dir, previous_name)
+
+    shutil.copy(mlist_path, new_path)
+
 
 def init():
     # If there is another instance of the script running, it will have created
@@ -571,8 +586,9 @@ def main():
     elif options.to_wipe != None:
         mlist = options.to_wipe
         wipe_mlist(mlist)
-    elif options.wipe_all:
-        wipe_all_current_mlists()
+    elif options.wipe_all != None:
+        mlist = options.wipe_all
+        wipe_all_current_mlists(mlist)
     elif options.real_sync:
         try:
             actual_virtual = open(ACTUAL_VIRTUAL, 'w')

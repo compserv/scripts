@@ -290,21 +290,28 @@ class NewUser(object):
 
     DN_TEMPLATE = "uid=%s,ou=people,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
 
-    def __init__(self, login, first_name, last_name):
+    def __init__(self, login, first_name, last_name, uidNumber=None):
         self.login = login
         self.first_name = first_name
         self.last_name = last_name
+        self.uidNumber = uidNumber
 
     def get_attrs(self, l):
-        return {'objectClass': NewUser.OBJECT_CLASS,
+        attrs = {'objectClass': NewUser.OBJECT_CLASS,
                 'cn': self.get_real_name(),
                 'userPassword': NewUser.DEFAULT_USER_PASS,
                 'uid': self.login,
-                'uidNumber': str(find_next_uid(l)),
                 'gidNumber': NewUser.HKN_GID,
                 'homeDirectory': self.get_homedir(),
                 'loginShell': NewUser.DEFAULT_SHELL
                 }
+        print "Adding uid:", self.uidNumber
+
+        if self.uidNumber:
+            attrs['uidNumber'] = self.uidNumber
+        else:
+            attrs['uidNumber'] = str(find_next_uid(l))
+        return attrs
 
     def get_real_name(self):
         return self.first_name + ' ' + self.last_name
@@ -410,9 +417,7 @@ def set_mail_membership(login, comm, is_cmember, not_current):
         aliases = set(['ops'])
     else:
         aliases = set([comm + ('-cmembers' if is_cmember else '-officers')])
-    if comm == 'studrel':
-        aliases = aliases.union(set(['indrel-auditors', 'act-auditors', 'tutoring-auditors']))
-    elif comm == 'compserv':
+    if comm == 'compserv':
         aliases.add('ops')
 
     if not not_current:
@@ -430,7 +435,7 @@ def set_mail_membership(login, comm, is_cmember, not_current):
         if alias not in old_virtual:
             warn_and_raise_nue('Alias for committee (%s) could not be found.' % alias)
 
-        mmlist.insert_email(login, alias)
+        mmlist.insert_email(login, alias, True)
 
 def unset_mail_membership(login, comm, is_cmember, not_current):
     old_virtual, old_aliases = mmlist.init()
@@ -440,9 +445,7 @@ def unset_mail_membership(login, comm, is_cmember, not_current):
         aliases = set(['ops'])
     else:
         aliases = set([comm + ('-cmembers' if is_cmember else '-officers')])
-    if comm == 'studrel':
-        aliases = aliases.union(set(['indrel-auditors', 'act-auditors', 'tutoring-auditors']))
-    elif comm == 'compserv':
+    if comm == 'compserv':
         aliases.add('ops')
 
     if not not_current:
@@ -462,7 +465,10 @@ def unset_mail_membership(login, comm, is_cmember, not_current):
             warn_and_raise_nue('Alias for committee (%s) could not be found.' % alias)
 
         if login not in old_virtual[comm]:
-            mmlist.delete_email(login, alias)
+            try:
+                mmlist.delete_email(login, alias)
+            except Exception as e:
+                warn("Could not delete email: " + str(e))
 
 def unmod_user(login, comm, is_cmember, not_current):
     unset_comm_membership(login, comm)
@@ -478,6 +484,15 @@ def add_new_user(login, comm, email, first_name, last_name, is_cmember, not_curr
     set_comm_membership(new_user.login, comm)
     set_mail_membership(new_user.login, comm, is_cmember, not_current)
     create_gafyd_user(new_user)
+
+#Used to add back users who were lost when hkn was restarted in 05/12
+def add_dead_user(login, comm, first_name, last_name, uid):
+
+    l = init_ldap()
+
+    new_user = NewUser(login, first_name, last_name, uid)
+    create_user(l, new_user)
+    set_comm_membership(new_user.login, comm)
 
 def mod_user(login, comm, is_cmember, not_current):
 

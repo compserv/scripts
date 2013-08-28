@@ -1,0 +1,45 @@
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+# 12/9/2009 - to try to debug the random reboots, I've set up this script
+# to send an email to ops whenever the system boots. Hopefully this isn't
+# necessary for very long, although it might be a good thing to have in
+# general.
+
+# 6/18/2012 - added start scripts for irc and gafyd. Couldn't figure out how to stop atheme, so currently not sure if atheme is set up correctly here. Also, not sure if I stopped pytail correcty while testing, so currently not sure if pytail is set up correctly here. 
+
+#cat /home/ibrahima/testmail | /usr/sbin/sendmail -t
+
+echo "*----------------Running rc.local---------------*"
+
+echo "Starting InspIRCd..."
+sudo -n -u irc /home/hkn/compserv/irc/inspircd/inspircd start || { echo "...Couldnt start InspIRCd"; }
+
+
+echo "Starting qwebirc..."
+cd /var/www/qwebirc
+python run.py -C '/etc/ssl/hkn.eecs.berkeley.edu.crt' -k '/etc/ssl/hkn.eecs.berkeley.edu.key' || { echo "...Couldnt start qwebirc"; } 
+cd -
+
+#echo "Starting atheme services..."
+/home/hkn/compserv/irc/atheme/bin/atheme-services || { echo "...Couldnt start atheme services"; }
+
+echo "Starting gafyd pytail.py..."
+su gafyd -c "screen -dmS 'pytail_screen' python ~/pygafyd/pytail.py" || { echo "...Couldnt start gafyd pytail.py"; }
+
+
+echo "*-----------Finished running rc.local-----------*"
+
+
+
+exit 0

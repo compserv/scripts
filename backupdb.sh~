@@ -11,7 +11,7 @@ DATE=`date +"%Y-%m-%d"`
 TIME=`date +"%H%M"`
 BACKUPHOME=/home/hkn/compserv/dbbackups
 BACKUPPATH=$BACKUPHOME/$MMMYY
-DBLIST=(hkn_rails_production gallery3 postgres redmine wikidb)
+DBLIST=(hkn_rails_production gallery3 postgres redmine wikidb courseguidedb)
 if [ ! -d $BACKUPPATH ]; then
     mkdir $BACKUPPATH
 fi
@@ -28,11 +28,7 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
     fi
     #Dump the current database into a file
     echo "Dumping $DB"
-    if [ "$DB" = "gallery3" ]; then #gallery3 runs on MySQL
-        mysqldump -u root $DB > $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql
-    else
-        pg_dump -U postgres $DB > $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql
-    fi
+    pg_dump -U postgres $DB > $BACKUPPATH/$MONTHLYARCH/$DB-$DATE-$TIME.sql
     if [ -f $BACKUPHOME/$DB-latest.bz2 ]; then
 	rm $BACKUPHOME/latest/$DB-latest.bz2
     fi
@@ -49,6 +45,6 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
     fi
     echo "Compressing monthly archives of $DB"
     tar -c $MONTHLYARCH/ >$MONTHLYARCH.tar
-    pbzip2 -f $MONTHLYARCH.tar
+    pbzip2 -vf $MONTHLYARCH.tar
     rm -rf $BACKUPPATH/$MONTHLYARCH/
 done
