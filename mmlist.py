@@ -304,11 +304,12 @@ def parse_options():
             default=False,
             help="make expansion or reverse expansion recursive")
     parser.add_option("--no-error", action="store_true", dest="no_error",
-            default=False, help="if a target cannot be found during expansion" +
-            " or reverse expansion, exit quietly instead of erroring out")
+            default=False, help="if a target cannot be found during expansion"
+                                " or reverse expansion, exit quietly instead"
+                                " of erroring out")
     parser.add_option("--diff", action="store_true", dest="diff",
-            default=False, help="Find changes that would be made if mmlist.py" +
-            " -z is run")
+            default=False, help="Find changes that would be made if mmlist.py"
+                                " -z is run")
     parser.add_option("-e", dest="target", metavar="target",
             help="expand target")
     parser.add_option("-b", dest="expansion", metavar="expansion",
@@ -316,25 +317,26 @@ def parse_options():
     parser.add_option("-a", action="store_true", dest="aliases", default=False,
             help="do given action for the aliases file")
     parser.add_option("-i", dest="to_insert", metavar="email entry", nargs=2,
-            help="inserts the email to the given target. Works only with " +
-            "virtual file.")
+            help="inserts the email to the given target. Works only with "
+                 "virtual file.")
     parser.add_option("-d", dest="to_delete", metavar="email entry", nargs=2,
-            help="deletes the email from the given target. This doesn't " +
-            "actually delete the entry but only comments it out. Works only " +
-            "with virtual file.")
+            help="deletes the email from the given target. This doesn't "
+                 "actually delete the entry but only comments it out. Works"
+                 " only with virtual file.")
     parser.add_option("-f", dest="mlist_dir", metavar="directory",
-            help="Indicate the directory under which mailing lists are " +
-            "specified, default is maillists")
+            help="Indicate the directory under which mailing lists are "
+                 "specified, default is maillists")
     parser.add_option("-z", action="store_true", dest="real_sync",
-            default=False, help="syncs directly to the actual file instead" +
-            "of syncing to the test aliases and virtual file.")
+            default=False, help="syncs directly to the actual file instead"
+                                "of syncing to the test aliases and virtual"
+                                " file.")
     parser.add_option('-c', action='store_true', dest='clean',
             default=False, help='cleans the mmlist lock file.')
     parser.add_option('-w', dest='to_wipe', metavar='mailing list',
             help="wipe the mailing list given (must be entry type)")
     parser.add_option("--wipe-current", action="store_true", dest="wipe_all",
-            default=False, help="wipe all the current-* mailing lists, after " +
-            "copying contents to previous-*")
+            default=False, help="wipe all the current-* mailing lists, after "
+                                "copying contents to previous-*")
 
     options, args = parser.parse_args()
     return (options, args)
