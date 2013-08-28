@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Making sure that the new aliases file generated is correct
-# TODO: Create GAFYD accounts automatically for new users. This can be done by 
+# TODO: Create GAFYD accounts automatically for new users. This can be done by
 # using the existing GAFYD script in /home/gafyd/pygafyd by appending a
 # password hash for the user in /home/gafyd/gafyd.log
 
@@ -49,18 +49,18 @@ def check_maillists(login):
 def init_ldap():
     try:
         l = ldap.open("127.0.0.1")
-        
+
         # you should  set this to ldap.VERSION2 if you're using a v2 directory
         l.protocol_version = ldap.VERSION3
-        # Pass in a valid username and password to get 
+        # Pass in a valid username and password to get
         # privileged directory access.
         # If you leave them as empty strings or pass an invalid value
         # you will still bind to the server but with limited privileges.
-         
+
         username = "cn=admin,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
         password  = "Eyu3KxxevumLB9H1"
-        
-        # Any errors will throw an ldap.LDAPError exception 
+
+        # Any errors will throw an ldap.LDAPError exception
         # or related exception so you can ignore the result
         l.simple_bind(username, password)
     except ldap.LDAPError, e:
@@ -77,7 +77,7 @@ def check_login(login):
     baseDN = "ou=people,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
     searchScope = ldap.SCOPE_SUBTREE
     ## retrieve all attributes - again adjust to your needs - see documentation for more options
-    retrieveAttributes = None 
+    retrieveAttributes = None
     searchFilter = "uid=%s" % login
 
     try:
@@ -90,7 +90,7 @@ def check_login(login):
             else:
                 ## here you don't have to append to a list
                 ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration. 
+                ## The appending to list is just for illustration.
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     result_set.append(result_data)
     except ldap.LDAPError, e:
@@ -111,7 +111,7 @@ def check_group(group):
     baseDN = "ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
     searchScope = ldap.SCOPE_SUBTREE
     ## retrieve all attributes - again adjust to your needs - see documentation for more options
-    retrieveAttributes = None 
+    retrieveAttributes = None
     searchFilter = "cn=%s" % group
 
     try:
@@ -124,7 +124,7 @@ def check_group(group):
             else:
                 ## here you don't have to append to a list
                 ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration. 
+                ## The appending to list is just for illustration.
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     result_set.append(result_data)
     except ldap.LDAPError, e:
@@ -156,7 +156,7 @@ def find_next_uid(l):
             else:
                 ## here you don't have to append to a list
                 ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration. 
+                ## The appending to list is just for illustration.
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     result_set.append(result_data)
     except ldap.LDAPError, e:
@@ -185,7 +185,7 @@ def unset_ldap_group(username, group):
             else:
                 ## here you don't have to append to a list
                 ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration. 
+                ## The appending to list is just for illustration.
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     result_set.append(result_data)
     except ldap.LDAPError, e:
@@ -201,11 +201,11 @@ def unset_ldap_group(username, group):
 
     # The dn of our existing entry/object
     dn = "cn=%s,ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu" % group
-    
+
     # Convert place-holders for modify-operation using modlist-module
     ldif = modlist.modifyModlist(oldattr,newattr)
-    
-    # Do the actual modification 
+
+    # Do the actual modification
     l.modify_s(dn,ldif)
 
     l.unbind_s()
@@ -229,7 +229,7 @@ def set_ldap_group(username, group):
             else:
                 ## here you don't have to append to a list
                 ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration. 
+                ## The appending to list is just for illustration.
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     result_set.append(result_data)
     except ldap.LDAPError, e:
@@ -245,11 +245,11 @@ def set_ldap_group(username, group):
 
     # The dn of our existing entry/object
     dn = "cn=%s,ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu" % group
-    
+
     # Convert place-holders for modify-operation using modlist-module
     ldif = modlist.modifyModlist(oldattr,newattr)
-    
-    # Do the actual modification 
+
+    # Do the actual modification
     l.modify_s(dn,ldif)
 
     l.unbind_s()
@@ -337,11 +337,11 @@ def create_gafyd_user(new_user):
 
     s = AppsService(email=G_EMAIL, password=G_PASSWORD, domain=G_DOMAIN)
     s.ProgrammaticLogin()
-    
+
     try:
         s.RetrieveUser(new_user.login)
     except:
-        s.CreateUser(new_user.login, new_user.last_name, new_user.first_name, 
+        s.CreateUser(new_user.login, new_user.last_name, new_user.first_name,
                 new_user.DEFAULT_USER_HASH, password_hash_function='SHA-1')
 
 
@@ -351,7 +351,7 @@ def create_user(l, new_user):
 
     if check_maillists(new_user):
         warn_and_raise_nue('Given login (%s) is already a mailing list.' % new_user)
-        
+
 
     # Convert our dict to nice syntax for the add-function using modlist-module
     ldif = modlist.addModlist(new_user.get_attrs(l))
@@ -430,7 +430,7 @@ def set_mail_membership(login, comm, is_cmember, not_current):
             aliases.add('current-officers')
 
         aliases.add('current-' + comm)
-        
+
     for alias in aliases:
         if alias not in old_virtual:
             warn_and_raise_nue('Alias for committee (%s) could not be found.' % alias)
@@ -459,7 +459,7 @@ def unset_mail_membership(login, comm, is_cmember, not_current):
 
         if comm == 'compserv' or comm == 'studrel' or comm == 'bridge' or comm == 'pres' or comm == 'vp':
             aliases.add('current-' + comm)
-        
+
     for alias in aliases:
         if alias not in old_virtual:
             warn_and_raise_nue('Alias for committee (%s) could not be found.' % alias)
@@ -533,7 +533,7 @@ def find_next_uid(l):
             else:
                 ## here you don't have to append to a list
                 ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration. 
+                ## The appending to list is just for illustration.
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     result_set.append(result_data)
     except ldap.LDAPError, e:
@@ -562,7 +562,7 @@ def hashes():
             else:
                 ## here you don't have to append to a list
                 ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration. 
+                ## The appending to list is just for illustration.
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     result_set.append(result_data)
     except ldap.LDAPError, e:
@@ -650,7 +650,7 @@ def main():
             check_val(opts.email, 'this option needs email (-e)')
             check_val(opts.first_name, 'this option needs first name (-nf)')
             check_val(opts.last_name, 'this option needs last name (-nl)')
-            
+
             add_new_user(opts.login, opts.comm, opts.email, opts.first_name,
                     opts.last_name, opts.is_cmember, opts.not_current)
 
@@ -675,4 +675,4 @@ if __name__ == "__main__":
     #print find_next_uid(init_ldap())
     #print find_next_uid(init_ldap())
     #hashes()
-    
+
