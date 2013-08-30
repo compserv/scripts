@@ -333,10 +333,11 @@ def parse_options():
     parser.add_option('-w', dest='to_wipe', metavar='mailing list',
             help="wipe the mailing list given (must be entry type)")
     parser.add_option("--wipe-current", dest="wipe_all", metavar='MAILLIST',
-            help="wipe all the current-* mailing lists, after " +
-            "copying contents to previous-* and to MAILLIST-*. " + 
-            "MAILLIST should be in {SEMESTER}{YEAR} (for example spring2013) format. " +
-            "These lists will be created if they don't exist and overwritten if they do.")
+            help="wipe all the current-* mailing lists, after "
+                 "copying contents to previous-* and to MAILLIST-*. " 
+                 "MAILLIST should be in {SEMESTER}{YEAR} (for example"
+                 "spring2013) format. These lists will be created if "
+                 "they don't exist and overwritten if they do.")
 
     options, args = parser.parse_args()
     return (options, args)
@@ -472,6 +473,11 @@ def delete_email(email, entry, no_error=False):
 
 # Wipes all current mailling lists after saving them to previous-* and mlist-*
 def wipe_all_current_mlists(mlist):
+    """
+    Wipes all current mailling lists after
+    saving them to previous-* and mlist-*
+
+    """
     lists = os.listdir(CURRENT_MLISTS_DIR)
     for list in lists:
         #if list != 'current-committees': Moved current-committees out of this
@@ -586,13 +592,12 @@ def main():
     elif options.to_wipe != None:
         mlist = options.to_wipe
         wipe_mlist(mlist)
-    elif options.wipe_all != None:
+    elif options.wipe_all is not None:
         mlist = options.wipe_all
         wipe_all_current_mlists(mlist)
     elif options.real_sync:
         try:
-            actual_virtual = open(ACTUAL_VIRTUAL, 'w')
-
+            actual_virtual = open(ACTUAL_VIRTUAL, 'w'is not
             for target in virtual.keys():
                 expansions = ", ".join(virtual[target])
                 actual_virtual.write("%s\t\t\t%s\n" % (target, expansions))
