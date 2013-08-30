@@ -471,7 +471,6 @@ def delete_email(email, entry, no_error=False):
     f.writelines(lines)
     f.close()
 
-# Wipes all current mailling lists after saving them to previous-* and mlist-*
 def wipe_all_current_mlists(mlist):
     """
     Wipes all current mailling lists after
