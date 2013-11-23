@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # TODO: CLEAN UP
-# 
+#
 # 2 types of files
 # * ruleset file - has body just like virtual file ( start with @), comments are
 # not copied over
@@ -148,7 +148,7 @@ def read_entry(entry_path):
 def read_ruleset(ruleset_path):
     """
     ruleset - full path to the ruleset entry
-    
+
     return - dictionary
     """
 
@@ -226,7 +226,7 @@ def read_addon(addon_path, dir_virtual):
 
     addon = os.path.basename(addon_path)[1:]
     addresses = []
-    
+
     f = open(addon_path)
     try:
         fcntl.lockf(f.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
@@ -283,7 +283,7 @@ def fill_table(dirpath):
         aliases.update(arules)
     for directory in directories:
         vrules, arules = read_directory(os.path.join(dirpath, directory))
-        dir_vrules, dir_arules = fill_table(os.path.join(dirpath, directory)) 
+        dir_vrules, dir_arules = fill_table(os.path.join(dirpath, directory))
         dir_virtual[directory] = dir_vrules
         virtual.update(vrules)
         aliases.update(arules)
@@ -304,11 +304,12 @@ def parse_options():
             default=False,
             help="make expansion or reverse expansion recursive")
     parser.add_option("--no-error", action="store_true", dest="no_error",
-            default=False, help="if a target cannot be found during expansion" +
-            " or reverse expansion, exit quietly instead of erroring out")
+            default=False, help="if a target cannot be found during expansion"
+                                " or reverse expansion, exit quietly instead"
+                                " of erroring out")
     parser.add_option("--diff", action="store_true", dest="diff",
-            default=False, help="Find changes that would be made if mmlist.py" +
-            " -z is run")
+            default=False, help="Find changes that would be made if mmlist.py"
+                                " -z is run")
     parser.add_option("-e", dest="target", metavar="target",
             help="expand target")
     parser.add_option("-b", dest="expansion", metavar="expansion",
@@ -316,25 +317,26 @@ def parse_options():
     parser.add_option("-a", action="store_true", dest="aliases", default=False,
             help="do given action for the aliases file")
     parser.add_option("-i", dest="to_insert", metavar="email entry", nargs=2,
-            help="inserts the email to the given target. Works only with " + 
-            "virtual file.")
+            help="inserts the email to the given target. Works only with "
+                 "virtual file.")
     parser.add_option("-d", dest="to_delete", metavar="email entry", nargs=2,
-            help="deletes the email from the given target. This doesn't " + 
-            "actually delete the entry but only comments it out. Works only " +
-            "with virtual file.")
+            help="deletes the email from the given target. This doesn't "
+                 "actually delete the entry but only comments it out. Works"
+                 " only with virtual file.")
     parser.add_option("-f", dest="mlist_dir", metavar="directory",
-            help="Indicate the directory under which mailing lists are " + 
-            "specified, default is maillists")
+            help="Indicate the directory under which mailing lists are "
+                 "specified, default is maillists")
     parser.add_option("-z", action="store_true", dest="real_sync",
-            default=False, help="syncs directly to the actual file instead" +
-            "of syncing to the test aliases and virtual file.")
+            default=False, help="syncs directly to the actual file instead"
+                                "of syncing to the test aliases and virtual"
+                                " file.")
     parser.add_option('-c', action='store_true', dest='clean',
             default=False, help='cleans the mmlist lock file.')
     parser.add_option('-w', dest='to_wipe', metavar='mailing list',
             help="wipe the mailing list given (must be entry type)")
-    parser.add_option("--wipe-current", action="store_true", dest="wipe_all", 
-            default=False, help="wipe all the current-* mailing lists, after " +
-            "copying contents to previous-*")
+    parser.add_option("--wipe-current", action="store_true", dest="wipe_all",
+            default=False, help="wipe all the current-* mailing lists, after "
+                                "copying contents to previous-*")
 
     options, args = parser.parse_args()
     return (options, args)
@@ -494,7 +496,7 @@ def move_current_to_previous(mlist):
         raise Exception("Could not find entry file: %s" % mlist)
 
     shutil.copy(mlist_path, new_path)
-    
+
 
 def init():
     # If there is another instance of the script running, it will have created
@@ -523,7 +525,7 @@ def init():
     for target in aliases.keys():
         if not aliases[target]:
             raise NoExpansionException("Following target has no expansion: %s" % target)
-    
+
     return virtual, aliases
 
 def main():
@@ -534,9 +536,9 @@ def main():
         os.remove(SCRIPT_LOCK)
         script_exit(0)
         return
-    if options.mlist_dir != None:
-        global MAILLISTS_DIR 
-        global CURRENT_MLISTS_DIR 
+    if options.mlist_dir is not None:
+        global MAILLISTS_DIR
+        global CURRENT_MLISTS_DIR
         global PREVIOUS_MLISTS_DIR
         MAILLISTS_DIR = os.path.join(SCRIPT_HOME, options.mlist_dir)
         CURRENT_MLISTS_DIR = os.path.join(MAILLISTS_DIR, 'current')
@@ -552,23 +554,23 @@ def main():
     if options.list:
         table = aliases if options.aliases else virtual
         list_targets(table)
-    elif options.target != None:
+    elif options.target is not None:
         table = aliases if options.aliases else virtual
         to_print = expand(options.target, options.recursive, table, options.no_error)
         if len(to_print) > 0:
             print "\n".join(to_print)
-    elif options.expansion != None:
+    elif options.expansion is not None:
         table = aliases if options.aliases else virtual
         to_print = reverse_expand(options.expansion, options.recursive, table, options.no_error)
         if len(to_print) > 0:
             print "\n".join(to_print)
-    elif options.to_insert != None:
+    elif options.to_insert is not None:
         email, entry = options.to_insert
         insert_email(email, entry, options.no_error)
-    elif options.to_delete != None:
+    elif options.to_delete is not None:
         email, entry = options.to_delete
         delete_email(email, entry, options.no_error)
-    elif options.to_wipe != None:
+    elif options.to_wipe is not None:
         mlist = options.to_wipe
         wipe_mlist(mlist)
     elif options.wipe_all:
@@ -589,7 +591,7 @@ def main():
 
             actual_virtual.close()
             actual_aliases.close()
-            
+
             #print "postmap " + ACTUAL_VIRTUAL
             #print "newaliases"
             if subprocess.call(["/usr/sbin/postmap", ACTUAL_VIRTUAL]) != 0: raise Exception
@@ -621,7 +623,7 @@ def main():
         p2 = subprocess.Popen(["/usr/bin/diff", ACTUAL_VIRTUAL, VIRTUAL_OUTPUT], stdout=subprocess.PIPE)
         p2.wait()
         print p2.communicate()[0]
-        
+
 
     script_exit(0)
 
