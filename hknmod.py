@@ -499,7 +499,7 @@ def mod_user(login, comm, is_cmember, not_current):
     set_comm_membership(login, comm)
     set_mail_membership(login, comm, is_cmember, not_current)
 
-def wipe_current_mlists():
+def wipe_current_mlists(mlist):
     #mlists = ['current-bridge', 'current-cmembers', 'current-compserv',
     #'current-non-pvp', 'current-officers', 'current-pres', 'current-studrel',
     #'current-vp']
@@ -509,7 +509,7 @@ def wipe_current_mlists():
     #        mmlist.wipe_current_mlist(mlist)
     #    except:
     #        pass
-    mmlist.wipe_all_current_mlists()
+    mmlist.wipe_all_current_mlists(mlist)
 
 # Backs up all files that will be edited
 def backup():
@@ -603,9 +603,10 @@ def parse_options():
     parser.add_option('-z', action='store_true', dest='not_current',
             default=False,
             help="don't add the member to the 'current' mailing lists.")
-    parser.add_option('-w', action='store_true', dest='wipe_mlists',
+    parser.add_option('-w', dest='wipe_mlists', metavar='maillist',
             default=False,
-            help="wipe 'current' mailing lists")
+            help="wipe 'current' mailing lists after storing contents"
+                 "to previous-* and to maillist-*.")
     options, args = parser.parse_args()
     return (options, args)
 
@@ -654,9 +655,10 @@ def main():
             add_new_user(opts.login, opts.comm, opts.email, opts.first_name,
                     opts.last_name, opts.is_cmember, opts.not_current)
 
-    elif opts.wipe_mlists:
-
-        wipe_current_mlists()
+    elif opts.wipe_mlists is not None:
+        check_val(opts.wipe_mlists, 'this option needs a maillist to'
+                                    'save to (-w)')
+        wipe_current_mlists(opts.wipe_mlist)
 
     script_exit(0)
 
