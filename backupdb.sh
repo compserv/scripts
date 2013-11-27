@@ -52,3 +52,24 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
     pbzip2 -f $MONTHLYARCH.tar
     rm -rf $BACKUPPATH/$MONTHLYARCH/
 done
+
+GLACIERARCH=glacier-$MMMYY
+#GLACIERFILE=$BACKUPPATH/glacier/$GLACIERARCH
+GLACIERFILE=/home/hkn/compserv/scripts/glacier/important_message.txt
+IDSFILE=$BACKUPPATH/$GLACIERARCH-ids
+
+#Compress all the dbs into one file
+tar cvf $GLACIERFILE.tar .
+pbzip2 -f $GLACIERFILE.tar
+
+if [ ! -f $IDSFILE]; THEN
+    touch $IDSFILE
+fi
+
+#Run Python script to upload to Glacier
+source glacier/BOTO_ENV/bin/activate
+#Save the archive ID to file
+python glacier/upload.py $GLACIERFILE.tar.bz2 >> $IDSFILE
+deactivate
+
+rm -rf $BACKUPPATH/glacier/
