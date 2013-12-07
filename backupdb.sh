@@ -18,6 +18,7 @@ fi
 if [ ! -d $BACKUPHOME/latest ]; then
     mkdir $BACKUPHOME/latest
 fi
+cd $BACKUPPATH
 for DB in "${DBLIST[@]}"; do #Dump each database in the list
     MONTHLYARCH=$DB-$MMMYY
     if [ -f $MONTHLYARCH.tar.bz2 ]; then #If we already made an archive of monthly backups, extract it.
