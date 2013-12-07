@@ -2,9 +2,11 @@ import boto
 import boto.glacier
 import time
 import sys
+import os
 
 ID_FILE = "AWSCredentials.awsid"
 SECRET_KEY_FILE = "AWSCredentials.awskey"
+VAULT_NAME = "dbbackups"
 
 with open(ID_FILE) as id_file:
     ACCESS_KEY_ID = id_file.read()
@@ -20,7 +22,7 @@ def connect():
         "us-west-2",
         aws_access_key_id=ACCESS_KEY_ID,
         aws_secret_access_key=SECRET_ACCESS_KEY)
-    return glacier_connection.get_vault("testing")
+    return glacier_connection.get_vault(VAULT_NAME)
 
 def upload(filename):
     """Upload the file specified by FILENAME to Amazon

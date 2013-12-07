@@ -18,8 +18,8 @@ fi
 if [ ! -d $BACKUPHOME/latest ]; then
     mkdir $BACKUPHOME/latest
 fi
-cd $BACKUPPATH
 for DB in "${DBLIST[@]}"; do #Dump each database in the list
+    break
     MONTHLYARCH=$DB-$MMMYY
     if [ -f $MONTHLYARCH.tar.bz2 ]; then #If we already made an archive of monthly backups, extract it.
 	tar -xjf $MONTHLYARCH.tar.bz2
@@ -53,23 +53,24 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
     rm -rf $BACKUPPATH/$MONTHLYARCH/
 done
 
+echo "Uploading all databases to Glacier"
 GLACIERARCH=glacier-$MMMYY
-#GLACIERFILE=$BACKUPPATH/glacier/$GLACIERARCH
-GLACIERFILE=/home/hkn/compserv/scripts/glacier/important_message.txt
+GLACIERFILE=$BACKUPPATH/glacier-temp-$GLACIERARCH
 IDSFILE=$BACKUPPATH/$GLACIERARCH-ids
 
 #Compress all the dbs into one file
-tar cvf $GLACIERFILE.tar .
+tar cvf $GLACIERFILE.tar $BACKUPHOME/$MMMYY
 pbzip2 -f $GLACIERFILE.tar
 
-if [ ! -f $IDSFILE]; THEN
+if [ ! -f $IDSFILE ]; then
     touch $IDSFILE
 fi
 
 #Run Python script to upload to Glacier
-source glacier/BOTO_ENV/bin/activate
+cd /home/hkn/compserv/scripts/glacier
+source BOTO_ENV/bin/activate
 #Save the archive ID to file
-python glacier/upload.py $GLACIERFILE.tar.bz2 >> $IDSFILE
+python upload.py $GLACIERFILE.tar.bz2 >> $IDSFILE
 deactivate
 
-rm -rf $BACKUPPATH/glacier/
+rm -rf $GLACIERFILE
