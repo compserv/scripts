@@ -597,7 +597,7 @@ def main():
         wipe_all_current_mlists(mlist)
     elif options.real_sync:
         try:
-            actual_virtual = open(ACTUAL_VIRTUAL, 'w'is not
+            actual_virtual = open(ACTUAL_VIRTUAL, 'w')
             for target in virtual.keys():
                 expansions = ", ".join(virtual[target])
                 actual_virtual.write("%s\t\t\t%s\n" % (target, expansions))
