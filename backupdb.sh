@@ -53,13 +53,14 @@ for DB in "${DBLIST[@]}"; do #Dump each database in the list
     rm -rf $BACKUPPATH/$MONTHLYARCH/
 done
 
-echo "Uploading all databases to Glacier"
+echo "Compressing databases into one file"
 GLACIERARCH=glacier-$MMMYY
-GLACIERFILE=$BACKUPPATH/glacier-temp-$GLACIERARCH
+GLACIERFILE=$BACKUPHOME/glacier-temp
 IDSFILE=$BACKUPPATH/$GLACIERARCH-ids
 
 #Compress all the dbs into one file
-tar cvf $GLACIERFILE.tar $BACKUPHOME/$MMMYY
+cd $BACKUPHOME
+tar cvf $GLACIERFILE.tar $MMMYY > /dev/null
 pbzip2 -f $GLACIERFILE.tar
 
 if [ ! -f $IDSFILE ]; then
@@ -67,10 +68,11 @@ if [ ! -f $IDSFILE ]; then
 fi
 
 #Run Python script to upload to Glacier
+echo "Uploading all databases to Glacier"
 cd /home/hkn/compserv/scripts/glacier
 source BOTO_ENV/bin/activate
 #Save the archive ID to file
 python upload.py $GLACIERFILE.tar.bz2 >> $IDSFILE
 deactivate
 
-rm -rf $GLACIERFILE
+rm $GLACIERFILE.tar.bz2
