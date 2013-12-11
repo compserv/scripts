@@ -96,13 +96,10 @@ def check_login(login):
     except ldap.LDAPError, e:
         print e
 
-    if len(result_set) == 1:
-        return True
-    elif len(result_set) > 1:
+    if len(result_set) > 1:
         print "Warning, multiple old users found."
-        return True
-    else:
-        return False
+
+    return len(result_set) >= 1
 
 # Returns true if group is valid with LDAP.
 def check_group(group):
@@ -130,13 +127,10 @@ def check_group(group):
     except ldap.LDAPError, e:
         print e
 
-    if len(result_set) == 1:
-        return True
-    elif len(result_set) > 1:
+    if len(result_set) > 1:
         print "Warning, multiple old groups found."
-        return True
-    else:
-        return False
+
+    return len(result_set) >= 1:
 
 def find_next_uid(l):
     ## The next lines will also need to be changed to support your search requirements and directory
@@ -412,7 +406,6 @@ def unset_comm_membership(login, comm):
 def set_mail_membership(login, comm, is_cmember, not_current):
     old_virtual, old_aliases = mmlist.init()
 
-
     if comm == 'ops':
         aliases = set(['ops'])
     else:
@@ -439,7 +432,6 @@ def set_mail_membership(login, comm, is_cmember, not_current):
 
 def unset_mail_membership(login, comm, is_cmember, not_current):
     old_virtual, old_aliases = mmlist.init()
-
 
     if comm == 'ops':
         aliases = set(['ops'])
@@ -475,7 +467,6 @@ def unmod_user(login, comm, is_cmember, not_current):
     unset_mail_membership(login, comm, is_cmember, not_current)
 
 def add_new_user(login, comm, email, first_name, last_name, is_cmember, not_current):
-
     l = init_ldap()
 
     new_user = NewUser(login, first_name, last_name)
@@ -487,7 +478,6 @@ def add_new_user(login, comm, email, first_name, last_name, is_cmember, not_curr
 
 #Used to add back users who were lost when hkn was restarted in 05/12
 def add_dead_user(login, comm, first_name, last_name, uid):
-
     l = init_ldap()
 
     new_user = NewUser(login, first_name, last_name, uid)
@@ -495,7 +485,6 @@ def add_dead_user(login, comm, first_name, last_name, uid):
     set_comm_membership(new_user.login, comm)
 
 def mod_user(login, comm, is_cmember, not_current):
-
     set_comm_membership(login, comm)
     set_mail_membership(login, comm, is_cmember, not_current)
 

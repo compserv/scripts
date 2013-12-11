@@ -72,13 +72,10 @@ def check_old_users(login):
     except ldap.LDAPError, e:
         print e
 
-    if len(result_set) == 1:
-        return True
-    elif len(result_set) > 1:
+    if len(result_set) > 1:
         print "Warning, multiple old users found."
-        return True
-    else:
-        return False
+
+    return len(result_set) >= 1
 
 def parse_positions():
     f = open(POSITIONS_FILE, "r")

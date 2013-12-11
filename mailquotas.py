@@ -20,7 +20,7 @@ def main():
             size = getsize(join('/var/mail/', file))
         except:
             print file + " was unreadable"
-        if size>threshold:
+        if size > threshold:
             print file + " is using %s" % sizeof_fmt(size)
             hosers += 1
     sys.exit(hosers)
