@@ -130,17 +130,21 @@ class mmlist:
     @classmethod
     def find_member(cls, member, recursive):
         if recursive:
-            result = cls.invoke("--no-error", "-rb", member)
+            option = "-rb"
         else:
-            result = cls.invoke("--no-error", "-b", member)
+            option = "-b"
+
+        result = cls.invoke("--no-error", option, member)
         return [x for x in result.split("\n") if x]
 
     @classmethod
     def expand_list(cls, mlist, recursive):
         if recursive:
-            result = cls.invoke("--no-error", "-re", mlist)
+            option = "-re"
         else:
-            result = cls.invoke("--no-error", "-e", mlist)
+            option = "-e"
+
+        result = cls.invoke("--no-error", option, mlist)
         return [x for x in result.split("\n") if x]
 
 class mailman:
@@ -171,10 +175,7 @@ class mailman:
     @classmethod
     def find_member(cls, member):
         result = [x.strip() for x in cls.invoke("find_member", "^"+member+"$").split("\n") if x]
-        if len(result) > 0:
-            return result[1:]
-        else:
-            return []
+        return result[1:]
 
     @classmethod
     def expand_list(cls, mlist):
