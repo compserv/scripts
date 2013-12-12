@@ -130,7 +130,7 @@ def check_group(group):
     if len(result_set) > 1:
         print "Warning, multiple old groups found."
 
-    return len(result_set) >= 1:
+    return len(result_set) >= 1
 
 def find_next_uid(l):
     ## The next lines will also need to be changed to support your search requirements and directory
