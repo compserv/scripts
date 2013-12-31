@@ -1,5 +1,6 @@
 import boto
 import boto.glacier
+from boto.glacier.exceptions import UnexpectedHTTPResponseError
 import time
 import sys
 import os
@@ -7,6 +8,7 @@ import os
 ID_FILE = "AWSCredentials.awsid"
 SECRET_KEY_FILE = "AWSCredentials.awskey"
 VAULT_NAME = "dbbackups"
+RETRIES = 3 #Number of times to retry uploading
 
 with open(ID_FILE) as id_file:
     ACCESS_KEY_ID = id_file.read()
@@ -29,8 +31,14 @@ def upload(filename):
     Glacier and return the archive ID.
     """
     vault = connect()
-    archive_id = vault.upload_archive(filename)
-    print(time.asctime() + ": ID " + str(archive_id))
+    for _ in range(RETRIES):
+        try:
+            archive_id = vault.upload_archive(filename)
+            print(time.asctime() + ": ID " + str(archive_id))
+            return
+        except UnexpectedHTTPResponseError as e:
+            print("Upload failed at " + time.asctime()
+                + " with error: " + str(e))
 
 def start_job(archive_id):
     """Start a job to download the file specified by
