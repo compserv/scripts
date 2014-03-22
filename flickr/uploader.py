@@ -3,12 +3,14 @@ import pickle
 import os
 import tarfile
 import re
+import urllib2
 import xml.etree.ElementTree as etree
 
 picture_dir = '/hkn/bridge/flickr/pictures'
 backup_dir = '/hkn/bridge/flickr/backup'
 auth_url_file = 'auth_url.txt'
 uploaded_filename = 'uploaded.pkl'
+photosets_filename = 'photosets.pkl'
 key_dir = 'keys'
 
 def load_keys():
@@ -57,65 +59,77 @@ def is_image(filename):
 
     return extension in valid_extensions
 
-def new_directories():
-    """Return a list of directories that did not exist the
-    last time we checked.
+def new_files():
+    """Return a list of new files and a list of changed
+    directories (directories with new files).
     """
-    if not os.path.isfile(uploaded_filename):
-        uploaded = set()
-    else:
-        with open(uploaded_filename) as f:
-            uploaded = pickle.load(f)
+    uploaded = unpickle_from(uploaded_filename, set())
 
-    new_dirs = []
+    changed_dirs = set()
+    new_files = []
     for dirpath, dirnames, filenames in os.walk(picture_dir):
-        for dirname in dirnames:
-            subdir_path = os.path.join(dirpath, dirname)
-            if subdir_path in uploaded:
+        for filename in filenames:
+            file_path = os.path.join(dirpath, filename)
+            if file_path in uploaded:
                 continue
 
-            print "Found new directory: %s" % subdir_path
-            new_dirs.append(subdir_path)
-            uploaded.add(subdir_path)
+            print "Found new file: %s" % file_path
+            new_files.append(file_path)
+            uploaded.add(file_path)
+            changed_dirs.add(dirpath)
 
     with open(uploaded_filename, 'w') as f:
         pickle.dump(uploaded, f)
 
-    return new_dirs
+    print "Changed directories: %s" % changed_dirs
+    return new_files, changed_dirs
+
+def unpickle_from(filename, default):
+    """If FILENAME exists, unpickle and return an object from it.
+    Otherwise return DEFAULT.
+    """
+    if not os.path.isfile(filename):
+        return default
+
+    with open(filename) as f:
+        return pickle.load(f)
 
 def upload_new():
-    """Walks the pictures directory and uploads all new directories.
-    Also saves them as tarballs.
+    """Walks the pictures directory and uploads all new files.
+    Also saves changed directories as tarballs.
     """
-    dirs = new_directories()
-    for directory in dirs:
-        photo_ids = []
-        for filename in os.listdir(directory):
-            if not is_image(filename):
-                continue
-            photo_ids.append(upload_file(directory, filename))
-        if len(photo_ids) == 0:
-            continue
+    photosets = unpickle_from(photosets_filename, {})
+    files, dirs = new_files()
 
+    for file_path in files:
+        if not is_image(file_path):
+            continue
+        upload_file(photosets, file_path)
+
+    for directory in dirs:
         save_tar(directory)
 
-        dir_name = os.path.relpath(directory, picture_dir)
-        dir_name = '_'.join(dir_name.split('/'))
-        make_photoset(photo_ids, dir_name)
+    with open(photosets_filename, 'w') as f:
+        pickle.dump(photosets, f)
 
-def make_photoset(photo_ids, title):
-    """Given a list of photo IDs, makes a photoset titled TITLE
-    containing those photos.
+def insert_photoset(photosets, file_dir, photo_id):
+    """Given a photo FILENAME and a mapping PHOTOSETS from directory to
+    photoset id, puts the photo with id PHOTO_ID in the appropriate
+    photoset, creating it if necessary.
     """
-    result = flickr.photosets_create(
-        title = title, description = title,
-        primary_photo_id = photo_ids[0])
-    for child in result:
-        if child.tag == 'photoset':
-            photoset_id = child.attrib['id']
+    dir_name = os.path.relpath(file_dir, picture_dir)
+    dir_name = '_'.join(dir_name.split('/'))
 
-    for photoid in photo_ids[1:]:
-        flickr.photosets_addPhoto(photoset_id = photoset_id, photo_id = photoid)
+    if file_dir in photosets:
+        photoset_id = photosets[file_dir]
+        flickr.photosets_addPhoto(photoset_id = photoset_id, photo_id = photo_id)
+    else:
+        result = flickr.photosets_create(
+            title = dir_name, description = dir_name,
+            primary_photo_id = photo_id)
+        ps_element = [c for c in result if c.tag == 'photoset'][0]
+        photoset_id = ps_element.attrib['id']
+        photosets[file_dir] = photoset_id
 
 def save_tar(directory):
     """Compresses DIRECTORY into a tarball and saves it in the backup
@@ -133,20 +147,29 @@ def save_tar(directory):
         tar.add(path, recursive = False)
     tar.close()
 
-def upload_file(directory, filename):
+def upload_file(photosets, file_path):
     """Uploads file/directory with name FILENAME in
-    DIRECTORY to Flickr.
+    DIRECTORY to Flickr and puts it in an appropriate photoset.
     """
-    path = os.path.join(directory, filename)
-    result = flickr.upload(path,
-        title = filename,
-        description = filename)
-    for child in result:
-        if child.tag == 'photoid':
-            photoid = child.text
+    directory, filename = os.path.split(file_path)
+    retries = 10
+    while retries > 0:
+        try:
+            result = flickr.upload(file_path,
+                title = filename,
+                description = filename)
+            break
+        except Exception as e:
+            print "Upload error: %s" % e
+    if retries == 0:
+        print "Failed to upload file %s" % filename
+        return
+
+    photoid_elt = [c for c in result if c.tag == 'photoid'][0]
+    photoid = photoid_elt.text
 
     print "Uploaded %s with ID %s" % (filename, photoid)
-    return photoid
+    insert_photoset(photosets, directory, photoid)
 
 api_key, api_secret = load_keys()
 flickr = authenticate()
