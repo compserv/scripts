@@ -170,7 +170,7 @@ def retry(fn, name, *args, **kwargs):
     print 'Out of retries. Exiting.'
 
 def send_email(bad_events):
-    """Send an email to bridge@hkn.eecs.berkeley.edu complaining
+    """Send an email to current-bridge@hkn.eecs.berkeley.edu complaining
     about bad event names.
     """
     message = "Hi Bridge,\\n\\n"
@@ -188,7 +188,7 @@ def send_email(bad_events):
     message += "FlickrBot"
 
     command = 'echo "' + message + '"'
-    command += ' | mail -s "Bad event name" josephhui@hkn.eecs.berkeley.edu'
+    command += ' | mail -s "Bad event name" current-bridge@hkn.eecs.berkeley.edu'
     os.system(command)
 
 def upload_file(photosets, file_path):
@@ -207,7 +207,6 @@ def upload_file(photosets, file_path):
     event = ''.join(event.split())
     if not re.match("\d\d\d\d-[a-zA-Z0-9]+\Z", event):
         return event
-    event = event[5:]
 
     result = retry(flickr.upload, 'Upload',
         file_path, title = filename, description = filename)
@@ -217,9 +216,13 @@ def upload_file(photosets, file_path):
 
     print 'Uploaded %s with ID %s' % (filename, photoid)
 
-    photoset_name = '-'.join([semester, event])
+    if event[:4] == '0000':
+        photoset_name = '-'.join([semester, event[5:]])
+    else:
+        photoset_name = '-'.join([semester, event])
     insert_photoset(photosets, photoset_name, photoid)
 
+    event = event[5:]
     tags = ' '.join([semester, event])
     retry(flickr.photos_setTags, 'Tags',
         photo_id = photoid, tags = tags)
