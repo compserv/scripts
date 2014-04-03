@@ -62,10 +62,11 @@ def is_image(filename):
 def new_files():
     """Return a list of new files and a list of changed
     directories (directories with new files).
+
+    Files are returned as absolute paths.
     """
     uploaded = unpickle_from(uploaded_filename, set())
 
-    changed_dirs = set()
     new_files = []
     for dirpath, dirnames, filenames in os.walk(picture_dir):
         for filename in filenames:
@@ -73,16 +74,14 @@ def new_files():
             if file_path in uploaded:
                 continue
 
-            print "Found new file: %s" % file_path
+            #print "Found new file: %s" % file_path
             new_files.append(file_path)
             uploaded.add(file_path)
-            changed_dirs.add(dirpath)
 
     with open(uploaded_filename, 'w') as f:
         pickle.dump(uploaded, f)
 
-    print "Changed directories: %s" % changed_dirs
-    return new_files, changed_dirs
+    return new_files
 
 def unpickle_from(filename, default):
     """If FILENAME exists, unpickle and return an object from it.
@@ -99,77 +98,131 @@ def upload_new():
     Also saves changed directories as tarballs.
     """
     photosets = unpickle_from(photosets_filename, {})
-    files, dirs = new_files()
+    files = new_files()
 
+    bad_events = set()
     for file_path in files:
         if not is_image(file_path):
             continue
-        upload_file(photosets, file_path)
+        bad_event = upload_file(photosets, file_path)
+        if bad_event:
+            bad_events.add(bad_event)
 
-    for directory in dirs:
-        save_tar(directory)
+    if len(bad_events) > 0:
+        print "Bad events: %s" % bad_events
+        send_email(bad_events)
 
     with open(photosets_filename, 'w') as f:
         pickle.dump(photosets, f)
 
-def insert_photoset(photosets, file_dir, photo_id):
-    """Given a photo FILENAME and a mapping PHOTOSETS from directory to
-    photoset id, puts the photo with id PHOTO_ID in the appropriate
-    photoset, creating it if necessary.
+def insert_photoset(photosets, set_name, photo_id):
+    """Given an photoset name SET_NAME and a mapping PHOTOSETS from
+    directory to photoset id, puts the photo with id PHOTO_ID in the
+    appropriate photoset, creating it if necessary.
     """
-    dir_name = os.path.relpath(file_dir, picture_dir)
-    dir_name = '_'.join(dir_name.split('/'))
-
-    if file_dir in photosets:
-        photoset_id = photosets[file_dir]
-        flickr.photosets_addPhoto(photoset_id = photoset_id, photo_id = photo_id)
+    if set_name in photosets:
+        photoset_id = photosets[set_name]
+        retry(flickr.photosets_addPhoto, "Photoset add",
+            photoset_id = photoset_id, photo_id = photo_id)
     else:
-        result = flickr.photosets_create(
-            title = dir_name, description = dir_name,
+        result = retry(flickr.photosets_create, "Create photoset",
+            title = set_name, description = set_name,
             primary_photo_id = photo_id)
         ps_element = [c for c in result if c.tag == 'photoset'][0]
         photoset_id = ps_element.attrib['id']
-        photosets[file_dir] = photoset_id
+        photosets[set_name] = photoset_id
 
-def save_tar(directory):
-    """Compresses DIRECTORY into a tarball and saves it in the backup
-    directory.
+def first_dirs(directory):
+    """Returns the first two directories from the relative path of
+    DIRECTORY from the pictures directory. Returns None if the path
+    does not contain at least two directories.
+
+    >>> first_dirs('/hkn/bridge/flickr/pictures/sp14/event/subdirectory')
+    ('sp14', 'event')
+    >>> first_dirs('/hkn/bridge/flickr/pictures/sp14/event')
+    ('sp14', 'event')
+    >>> print(first_dirs('/hkn/bridge/flickr/pictures/sp14'))
+    None
     """
-    dir_name = os.path.relpath(directory, picture_dir)
-    backup_path = os.path.join(backup_dir, dir_name + '.tar.gz')
-    backup_subdir = os.path.dirname(backup_path)
-    if not os.path.exists(backup_subdir):
-        os.makedirs(backup_subdir)
+    directory = os.path.relpath(directory, picture_dir)
+    directories = []
+    while directory != '':
+        directory, last = os.path.split(directory)
+        directories.append(last)
 
-    tar = tarfile.open(backup_path, 'w:gz')
-    for filename in os.listdir(directory):
-        path = os.path.join(directory, filename)
-        tar.add(path, recursive = False)
-    tar.close()
+    if len(directories) < 2:
+        return None
 
-def upload_file(photosets, file_path):
-    """Uploads file/directory with name FILENAME in
-    DIRECTORY to Flickr and puts it in an appropriate photoset.
+    return (directories[-1], directories[-2])
+
+def retry(fn, name, *args, **kwargs):
+    """Attempts to call FN with arguments KWARGS 10 times.
+    Reports errors describing the operation with NAME.
     """
-    directory, filename = os.path.split(file_path)
     retries = 10
     while retries > 0:
         try:
-            result = flickr.upload(file_path,
-                title = filename,
-                description = filename)
-            break
+            return fn(*args, **kwargs)
         except Exception as e:
-            print "Upload error: %s" % e
-    if retries == 0:
-        print "Failed to upload file %s" % filename
+            print '%s error: %s' % (name, e)
+            retries -= 1
+
+    print 'Out of retries. Exiting.'
+
+def send_email(bad_events):
+    """Send an email to bridge@hkn.eecs.berkeley.edu complaining
+    about bad event names.
+    """
+    message = "Hi Bridge,\\n\\n"
+    message += "This is your humble servant, FlickrBot. I regret to inform you that "
+    message += "some of the events in the flickr/pictures directory are not correctly "
+    message += "formatted. As a reminder, the correct format is:\\n"
+    message += "MMDD-CAMELCASEDEVENTNAME\\n"
+    message += "E.g. flickr/pictures/Sp14/0307-CandidateIceCream.\\n\\n"
+    message += "The following directories are incorrectly formatted:\\n"
+    for event in bad_events:
+        message += event + "\\n"
+    message += "\\nPlease rename these directories. They will be uploaded "
+    message += "the next time I am activated.\\n\\n"
+    message += "Forever loyal,\\n"
+    message += "FlickrBot"
+
+    command = 'echo "' + message + '"'
+    command += ' | mail -s "Bad event name" josephhui@hkn.eecs.berkeley.edu'
+    os.system(command)
+
+def upload_file(photosets, file_path):
+    """Uploads file/directory with absolute path FILE_PATH to Flickr
+    and puts it in an appropriate photoset, given the set of existing
+    photosets PHOTOSETS. Also tags it.
+
+    If the event name is not valid, return the event name. Otherwise return None.
+
+    E.g.: upload_file(set(), '/hkn/bridge/flickr/pictures/Sp14/0304-Potluck/pic.jpg')
+    """
+    directory, filename = os.path.split(file_path)
+    if first_dirs(directory) is None:
         return
+    semester, event = first_dirs(directory)
+    event = ''.join(event.split())
+    if not re.match("\d\d\d\d-[a-zA-Z0-9]+\Z", event):
+        return event
+    event = event[5:]
+
+    result = retry(flickr.upload, 'Upload',
+        file_path, title = filename, description = filename)
 
     photoid_elt = [c for c in result if c.tag == 'photoid'][0]
     photoid = photoid_elt.text
 
-    print "Uploaded %s with ID %s" % (filename, photoid)
-    insert_photoset(photosets, directory, photoid)
+    print 'Uploaded %s with ID %s' % (filename, photoid)
+
+    photoset_name = '-'.join([semester, event])
+    insert_photoset(photosets, photoset_name, photoid)
+
+    tags = ' '.join([semester, event])
+    retry(flickr.photos_setTags, 'Tags',
+        photo_id = photoid, tags = tags)
 
 api_key, api_secret = load_keys()
 flickr = authenticate()
