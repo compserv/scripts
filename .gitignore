@@ -1,1 +1,3 @@
 glacier/AWSCredentials*
+flickr/FLICKRENV/*
+glacier/BOTO_ENV/*

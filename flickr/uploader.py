@@ -1,9 +1,6 @@
 import flickrapi
-import pickle
-import os
-import tarfile
-import re
-import urllib2
+import os, pickle, time, tarfile
+import re, urllib2
 import xml.etree.ElementTree as etree
 
 picture_dir = '/hkn/bridge/flickr/pictures'
@@ -12,6 +9,7 @@ auth_url_file = 'auth_url.txt'
 uploaded_filename = 'uploaded.pkl'
 photosets_filename = 'photosets.pkl'
 key_dir = 'keys'
+UPLOAD_QUOTA = 4000 #Maximum number of files to upload in a session
 
 def load_keys():
     """Loads api key/secret from file.
@@ -59,29 +57,24 @@ def is_image(filename):
 
     return extension in valid_extensions
 
-def new_files():
-    """Return a list of new files and a list of changed
-    directories (directories with new files).
-
+def new_files(uploaded):
+    """Return a list of new images.
     Files are returned as absolute paths.
-    """
-    uploaded = unpickle_from(uploaded_filename, set())
 
+    UPLOADED: Already-uploaded filepaths.
+    """
     new_files = []
     for dirpath, dirnames, filenames in os.walk(picture_dir):
         for filename in filenames:
+            if not is_image(filename):
+                continue
             file_path = os.path.join(dirpath, filename)
             if file_path in uploaded:
                 continue
 
-            #print "Found new file: %s" % file_path
             new_files.append(file_path)
-            uploaded.add(file_path)
 
-    with open(uploaded_filename, 'w') as f:
-        pickle.dump(uploaded, f)
-
-    return new_files
+    return new_files[:UPLOAD_QUOTA]
 
 def unpickle_from(filename, default):
     """If FILENAME exists, unpickle and return an object from it.
@@ -97,16 +90,23 @@ def upload_new():
     """Walks the pictures directory and uploads all new files.
     Also saves changed directories as tarballs.
     """
+    start = time.clock()
+    uploaded = unpickle_from(uploaded_filename, set())
+    uploaded = set(uploaded)
     photosets = unpickle_from(photosets_filename, {})
-    files = new_files()
+    files = new_files(uploaded)
 
     bad_events = set()
     for file_path in files:
-        if not is_image(file_path):
-            continue
-        bad_event = upload_file(photosets, file_path)
-        if bad_event:
-            bad_events.add(bad_event)
+        try:
+            bad_event = upload_file(photosets, uploaded, file_path)
+            if bad_event:
+                bad_events.add(bad_event)
+        except RetryException:
+            print "Okay, moving on."
+
+        if time.clock() - start > (60 * 60 * 12):
+            break
 
     if len(bad_events) > 0:
         print "Bad events: %s" % bad_events
@@ -114,6 +114,8 @@ def upload_new():
 
     with open(photosets_filename, 'w') as f:
         pickle.dump(photosets, f)
+    with open(uploaded_filename, 'w') as f:
+        pickle.dump(uploaded, f)
 
 def insert_photoset(photosets, set_name, photo_id):
     """Given an photoset name SET_NAME and a mapping PHOTOSETS from
@@ -122,10 +124,11 @@ def insert_photoset(photosets, set_name, photo_id):
     """
     if set_name in photosets:
         photoset_id = photosets[set_name]
-        retry(flickr.photosets_addPhoto, "Photoset add",
+        retry(flickr.photosets_addPhoto, "Photoset add %s" % photo_id,
             photoset_id = photoset_id, photo_id = photo_id)
     else:
-        result = retry(flickr.photosets_create, "Create photoset",
+        result = retry(flickr.photosets_create,
+            "Create photoset %s" % photo_id,
             title = set_name, description = set_name,
             primary_photo_id = photo_id)
         ps_element = [c for c in result if c.tag == 'photoset'][0]
@@ -156,18 +159,26 @@ def first_dirs(directory):
     return (directories[-1], directories[-2])
 
 def retry(fn, name, *args, **kwargs):
-    """Attempts to call FN with arguments KWARGS 10 times.
-    Reports errors describing the operation with NAME.
+    """Call FN with arguments ARGS/KWARGS repeatedly, with an
+    exponential backoff after each failure.
+
+    Report errors describing the operation with NAME.
+    If we run out of retries, raise a RetryException.
     """
-    retries = 10
+    retries = 5
+    delay = 0.03 #Initial delay in seconds
+
     while retries > 0:
         try:
             return fn(*args, **kwargs)
         except Exception as e:
-            print '%s error: %s' % (name, e)
+            print '%s: %s error: %s %s.' % (time.asctime(), name, type(e), e)
+            time.sleep(delay)
             retries -= 1
+            delay *= 2
 
-    print 'Out of retries. Exiting.'
+    print 'Out of retries for %s.' % name
+    raise RetryException()
 
 def send_email(bad_events):
     """Send an email to current-bridge@hkn.eecs.berkeley.edu complaining
@@ -188,17 +199,23 @@ def send_email(bad_events):
     message += "FlickrBot"
 
     command = 'echo "' + message + '"'
-    command += ' | mail -s "Bad event name" current-bridge@hkn.eecs.berkeley.edu'
+    command += ' | mail -s "Bad event name" '
+    command += 'compserv@hkn.eecs.berkeley.edu current-bridge@hkn.eecs.berkeley.edu'
     os.system(command)
 
-def upload_file(photosets, file_path):
+def upload_file(photosets, uploaded, file_path):
     """Uploads file/directory with absolute path FILE_PATH to Flickr
-    and puts it in an appropriate photoset, given the set of existing
+    and puts it in an appropriate photoset, given the dict of existing
     photosets PHOTOSETS. Also tags it.
 
-    If the event name is not valid, return the event name. Otherwise return None.
+    If upload is successful, adds filepath to UPLOADED.
+    Returns the event name if it was invalid; otherwise None.
 
-    E.g.: upload_file(set(), '/hkn/bridge/flickr/pictures/Sp14/0304-Potluck/pic.jpg')
+    If network fails and we run out of retries, an Exception will be raised.
+
+    Events titled '0000-someevent' have the '0000-' ignored.
+
+    E.g.: upload_file({}, set(), '/hkn/bridge/flickr/pictures/Sp14/0304-Potluck/pic.jpg')
     """
     directory, filename = os.path.split(file_path)
     if first_dirs(directory) is None:
@@ -208,13 +225,11 @@ def upload_file(photosets, file_path):
     if not re.match("\d\d\d\d-[a-zA-Z0-9]+\Z", event):
         return event
 
-    result = retry(flickr.upload, 'Upload',
+    result = retry(flickr.upload, 'Upload %s' % filename,
         file_path, title = filename, description = filename)
 
     photoid_elt = [c for c in result if c.tag == 'photoid'][0]
     photoid = photoid_elt.text
-
-    print 'Uploaded %s with ID %s' % (filename, photoid)
 
     if event[:4] == '0000':
         photoset_name = '-'.join([semester, event[5:]])
@@ -224,9 +239,65 @@ def upload_file(photosets, file_path):
 
     event = event[5:]
     tags = ' '.join([semester, event])
-    retry(flickr.photos_setTags, 'Tags',
+    retry(flickr.photos_setTags, 'Tag %s' % photoid,
         photo_id = photoid, tags = tags)
+
+    uploaded.add(file_path)
+
+def sort_sets():
+    """Sorts photosets by semester.
+    """
+    #name => id
+    photosets = unpickle_from(photosets_filename, {})
+    print len(photosets)
+
+    def date(set_name):
+        set_name = set_name.upper()
+        semesters = {'SP': 0, 'FA': 0.5}
+        if set_name[:2] in semesters:
+            year = set_name[2:4]
+            date = int(year)
+            if year[0] != '9':
+                date += 100
+            date += semesters[set_name[:2]]
+        elif set_name[:3] == 'OLD':
+            date = -10
+        else:
+            print 'wat: %s' % set_name
+            date = -20
+        return -date
+
+    photosets = list(photosets.items())
+    photosets.sort(key = lambda kv: date(kv[0]))
+    sorted_ids = ','.join([kv[1] for kv in photosets])
+
+    flickr.photosets_orderSets(photoset_ids = sorted_ids)
+
+def fetch_photosets():
+    """Update photosets with data from website.
+    """
+    photosets = unpickle_from(photosets_filename, {})
+    result = flickr.photosets_getList()
+    photosets_element = [c for c in result if c.tag == 'photosets'][0]
+
+    missing = 0
+    for ps_element in photosets_element:
+        ps_id = ps_element.attrib['id']
+        title = [c for c in ps_element if c.tag == 'title'][0].text
+        if title not in photosets:
+            photosets[title] = ps_id
+            missing += 1
+    print missing
+
+    with open(photosets_filename, 'w') as f:
+        pickle.dump(photosets, f)
+
+class RetryException(Exception):
+    pass
 
 api_key, api_secret = load_keys()
 flickr = authenticate()
-upload_new()
+if __name__ == '__main__':
+    #fetch_photosets()
+    #sort_sets()
+    upload_new()
