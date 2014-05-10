@@ -28,19 +28,21 @@ if __name__ == "__main__":
     subject = msg["subject"]
     sender = msg["from"]
     me = "ops@hkn.eecs.berkeley.edu"
-    cc = "compserv@hkn.eecs.berkeley.edu, ops@hkn.eecs.berkeley.edu"
+    cc = ["compserv@hkn.eecs.berkeley.edu", "ops@hkn.eecs.berkeley.edu"]
 
     new_msg = MIMEMultipart("alternative")
     new_msg.attach(MIMEText(suicidal_confirm, "plain", "UTF-8"))
     new_msg["Subject"] = "Re: {0}".format(subject)
     new_msg["From"] = me
     new_msg["To"] = sender
-    new_msg["Cc"] = cc 
+    new_msg["Cc"] = ",".join(cc) 
     new_msg["In-Reply-To"] = msg["Message-ID"]
     new_msg["References"] = msg["Message-ID"]
 
+    toaddrs = [sender] + cc
+
     s = smtplib.SMTP("localhost")
-    s.sendmail(me, [sender, cc], new_msg.as_string())
+    s.sendmail(me, toaddrs, new_msg.as_string())
     s.quit()
 
 
