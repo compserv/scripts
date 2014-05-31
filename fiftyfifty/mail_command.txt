@@ -1,1 +1,0 @@
-echo "<html>%s<br><img width=\"100%%\" src=\"%s\"></html>" | mailx -a "Content-type: text/html" -s "Daily HKN 50/50" Hkn5050@hkn.eecs.berkeley.edu -- -f Hkn5050@hkn.eecs.berkeley.edu
