@@ -297,5 +297,4 @@ api_key, api_secret = load_keys()
 flickr = authenticate()
 if __name__ == '__main__':
     upload_new()
-    #fetch_photosets()
-    #sort_sets()
+
