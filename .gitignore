@@ -1,5 +1,6 @@
 glacier/AWSCredentials*
 flickr/FLICKRENV/*
+flickr/auth_url.txt
 glacier/BOTO_ENV/*
 flickr/keys/*
 *.pkl

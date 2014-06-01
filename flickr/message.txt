@@ -7,7 +7,7 @@ MMDD-CAMELCASEDEVENTNAME
 E.g. flickr/pictures/Sp14/0307-CandidateIceCream.
 
 The following directories are incorrectly formatted:
-%s
+{0}
 
 Please rename these directories. They will be uploaded
 the next time I am activated.
