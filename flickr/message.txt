@@ -1,0 +1,16 @@
+Hi Bridge,
+
+This is your humble servant, FlickrBot. I regret to inform you that
+some of the events in the flickr/pictures directory are not correctly
+formatted. As a reminder, the correct format is:
+MMDD-CAMELCASEDEVENTNAME
+E.g. flickr/pictures/Sp14/0307-CandidateIceCream.
+
+The following directories are incorrectly formatted:
+%s
+
+Please rename these directories. They will be uploaded
+the next time I am activated.
+
+Forever loyal,
+FlickrBot

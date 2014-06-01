@@ -42,7 +42,7 @@ def authenticate():
         auth_url = flickr.auth_url(perms, frob)
         with open(AUTH_URL_FILE, 'w') as f:
             f.write(auth_url)
-        print("Please authorize at the URL in %s" % AUTH_URL_FILE)
+        print("Please authorize at the URL in {}".format(AUTH_URL_FILE))
         print("Continuing in 60 seconds.")
         time.sleep(60)
 
@@ -116,7 +116,7 @@ def upload_new():
             break
 
     if len(bad_events) > 0:
-        print "Bad events: %s" % bad_events
+        print "Bad events: {}".format(bad_events)
         send_email(bad_events)
 
     with open(PHOTOSETS_FILENAME, 'w') as f:
@@ -131,11 +131,11 @@ def insert_photoset(photosets, set_name, photo_id):
     """
     if set_name in photosets:
         photoset_id = photosets[set_name]
-        retry(flickr.photosets_addPhoto, "Photoset add %s" % photo_id,
+        retry(flickr.photosets_addPhoto, "Photoset add {}".format(photo_id),
             photoset_id = photoset_id, photo_id = photo_id)
     else:
         result = retry(flickr.photosets_create,
-            "Create photoset %s" % photo_id,
+            "Create photoset {}".format(photo_id),
             title = set_name, description = set_name,
             primary_photo_id = photo_id)
         ps_element = [c for c in result if c.tag == 'photoset'][0]
@@ -179,12 +179,12 @@ def retry(fn, name, *args, **kwargs):
         try:
             return fn(*args, **kwargs)
         except Exception as e:
-            print '%s: %s error: %s %s.' % (time.asctime(), name, type(e), e)
+            print '{}: {} error: {} {}.'.format(time.asctime(), name, type(e), e)
             time.sleep(delay)
             retries -= 1
             delay *= 2
 
-    print 'Out of retries for %s.' % name
+    print 'Out of retries for {}.'.format(name)
     raise RetryException()
 
 def send_email(bad_events):
@@ -192,7 +192,7 @@ def send_email(bad_events):
     about bad event names.
     """
     with open(MESSAGE_FILE) as f:
-        message_text = f.read() % ('\n'.join(bad_events),)
+        message_text = f.read().format('\n'.join(bad_events))
 
     msg = MIMEText(message_text)
     msg['Subject'] = 'Bad event names'
@@ -225,7 +225,7 @@ def upload_file(photosets, uploaded, file_path):
     if not re.match("\d\d\d\d-[a-zA-Z0-9]+\Z", event):
         return event
 
-    result = retry(flickr.upload, 'Upload %s' % filename,
+    result = retry(flickr.upload, 'Upload {}'.format(filename),
         file_path, title = filename, description = filename)
 
     photoid_elt = [c for c in result if c.tag == 'photoid'][0]
@@ -239,7 +239,7 @@ def upload_file(photosets, uploaded, file_path):
 
     event = event[5:]
     tags = ' '.join([semester, event])
-    retry(flickr.photos_setTags, 'Tag %s' % photoid,
+    retry(flickr.photos_setTags, 'Tag {}'.format(photoid),
         photo_id = photoid, tags = tags)
 
     uploaded.add(file_path)
@@ -262,7 +262,7 @@ def sort_sets():
         elif set_name[:3] == 'OLD':
             date = -10
         else:
-            print 'wat: %s' % set_name
+            print 'wat: {}'.format(set_name)
             date = -20
         return -date
 
@@ -297,4 +297,3 @@ api_key, api_secret = load_keys()
 flickr = authenticate()
 if __name__ == '__main__':
     upload_new()
-
