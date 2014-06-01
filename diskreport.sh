@@ -20,12 +20,5 @@ du -s /home/* --exclude=yearbook 2>/dev/null| sort -nr | head -n15 | cut -f 2- |
 #du /home/* -s 2>/dev/null| sort -nr | head -n15>>$tempfile
 echo>>$tempfile
 
-#echo "====Largest Mail Spools====">>$tempfile
-#names=`ls -1hsS /var/mail|tail -n+2|head -n15|gawk '{print $2;}'`
-#for name in ${names[@]}
-#do
-#  echo $name '('`ls -1hsS /var/mail | /bin/grep -w $name | gawk '{print $1;}'`'):' `python /home/hkn/compserv/scripts/mmlist.py -b $name | tr '\n' ' '` >> $tempfile
-#done
-
 cat $tempfile |/usr/sbin/sendmail -t
 rm $tempfile

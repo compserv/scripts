@@ -2,21 +2,29 @@ import flickrapi
 import os, pickle, time, tarfile
 import re, urllib2
 import xml.etree.ElementTree as etree
+import smtplib
+from email.mime.text import MIMEText
 
-picture_dir = '/hkn/bridge/flickr/pictures'
-backup_dir = '/hkn/bridge/flickr/backup'
-auth_url_file = 'auth_url.txt'
-uploaded_filename = 'uploaded.pkl'
-photosets_filename = 'photosets.pkl'
-key_dir = 'keys'
-UPLOAD_QUOTA = 4000 #Maximum number of files to upload in a session
+PICTURE_DIR = '/hkn/bridge/flickr/pictures'
+AUTH_URL_FILE = 'auth_url.txt'
+MESSAGE_FILE = 'message.txt'
+UPLOADED_FILENAME = 'uploaded.pkl'
+PHOTOSETS_FILENAME = 'photosets.pkl'
+KEY_DIR = 'keys'
+
+COMPSERV_EMAIL = 'compserv@hkn.eecs.berkeley.edu'
+BRIDGE_EMAIL = 'current-bridge@hkn.eecs.berkeley.edu'
+
+#Number of times to retry an operation
+MAX_RETRIES = 5
+#Initial delay before retrying (doubles each retry)
+INITIAL_RETRY_DELAY = 0.03
 
 def load_keys():
-    """Loads api key/secret from file.
-    """
-    with open(os.path.join(key_dir, 'api_key')) as f:
+    """Loads api key/secret from file."""
+    with open(os.path.join(KEY_DIR, 'api_key')) as f:
         api_key = f.read()
-    with open(os.path.join(key_dir, 'api_secret')) as f:
+    with open(os.path.join(KEY_DIR, 'api_secret')) as f:
         api_secret = f.read()
     return api_key, api_secret
 
@@ -32,9 +40,9 @@ def authenticate():
         """
         import time
         auth_url = flickr.auth_url(perms, frob)
-        with open(auth_url_file, 'w') as f:
+        with open(AUTH_URL_FILE, 'w') as f:
             f.write(auth_url)
-        print("Please authorize at the URL in %s" % auth_url_file)
+        print("Please authorize at the URL in %s" % AUTH_URL_FILE)
         print("Continuing in 60 seconds.")
         time.sleep(60)
 
@@ -45,8 +53,7 @@ def authenticate():
     return flickr
 
 def is_image(filename):
-    """Returns True iff FILENAME looks like a valid image name.
-    """
+    """Returns True iff FILENAME looks like a valid image name."""
     valid_extensions = ['png', 'jpg', 'jpeg', 'bmp', 'gif']
 
     filename = filename.lower()
@@ -64,7 +71,7 @@ def new_files(uploaded):
     UPLOADED: Already-uploaded filepaths.
     """
     new_files = []
-    for dirpath, dirnames, filenames in os.walk(picture_dir):
+    for dirpath, dirnames, filenames in os.walk(PICTURE_DIR):
         for filename in filenames:
             if not is_image(filename):
                 continue
@@ -74,7 +81,7 @@ def new_files(uploaded):
 
             new_files.append(file_path)
 
-    return new_files[:UPLOAD_QUOTA]
+    return new_files
 
 def unpickle_from(filename, default):
     """If FILENAME exists, unpickle and return an object from it.
@@ -91,9 +98,9 @@ def upload_new():
     Also saves changed directories as tarballs.
     """
     start = time.clock()
-    uploaded = unpickle_from(uploaded_filename, set())
+    uploaded = unpickle_from(UPLOADED_FILENAME, set())
     uploaded = set(uploaded)
-    photosets = unpickle_from(photosets_filename, {})
+    photosets = unpickle_from(PHOTOSETS_FILENAME, {})
     files = new_files(uploaded)
 
     bad_events = set()
@@ -112,9 +119,9 @@ def upload_new():
         print "Bad events: %s" % bad_events
         send_email(bad_events)
 
-    with open(photosets_filename, 'w') as f:
+    with open(PHOTOSETS_FILENAME, 'w') as f:
         pickle.dump(photosets, f)
-    with open(uploaded_filename, 'w') as f:
+    with open(UPLOADED_FILENAME, 'w') as f:
         pickle.dump(uploaded, f)
 
 def insert_photoset(photosets, set_name, photo_id):
@@ -147,7 +154,7 @@ def first_dirs(directory):
     >>> print(first_dirs('/hkn/bridge/flickr/pictures/sp14'))
     None
     """
-    directory = os.path.relpath(directory, picture_dir)
+    directory = os.path.relpath(directory, PICTURE_DIR)
     directories = []
     while directory != '':
         directory, last = os.path.split(directory)
@@ -165,8 +172,8 @@ def retry(fn, name, *args, **kwargs):
     Report errors describing the operation with NAME.
     If we run out of retries, raise a RetryException.
     """
-    retries = 5
-    delay = 0.03 #Initial delay in seconds
+    retries = MAX_RETRIES
+    delay = INITIAL_RETRY_DELAY
 
     while retries > 0:
         try:
@@ -184,24 +191,17 @@ def send_email(bad_events):
     """Send an email to current-bridge@hkn.eecs.berkeley.edu complaining
     about bad event names.
     """
-    message = "Hi Bridge,\\n\\n"
-    message += "This is your humble servant, FlickrBot. I regret to inform you that "
-    message += "some of the events in the flickr/pictures directory are not correctly "
-    message += "formatted. As a reminder, the correct format is:\\n"
-    message += "MMDD-CAMELCASEDEVENTNAME\\n"
-    message += "E.g. flickr/pictures/Sp14/0307-CandidateIceCream.\\n\\n"
-    message += "The following directories are incorrectly formatted:\\n"
-    for event in bad_events:
-        message += event + "\\n"
-    message += "\\nPlease rename these directories. They will be uploaded "
-    message += "the next time I am activated.\\n\\n"
-    message += "Forever loyal,\\n"
-    message += "FlickrBot"
+    with open(MESSAGE_FILE) as f:
+        message_text = f.read() % ('\n'.join(bad_events),)
 
-    command = 'echo "' + message + '"'
-    command += ' | mail -s "Bad event name" '
-    command += 'compserv@hkn.eecs.berkeley.edu current-bridge@hkn.eecs.berkeley.edu'
-    os.system(command)
+    msg = MIMEText(message_text)
+    msg['Subject'] = 'Bad event names'
+    msg['From'] = COMPSERV_EMAIL
+    msg['To'] = BRIDGE_EMAIL
+
+    s = smtplib.SMTP('localhost')
+    s.sendmail(COMPSERV_EMAIL, [BRIDGE_EMAIL], msg.as_string())
+    s.quit()
 
 def upload_file(photosets, uploaded, file_path):
     """Uploads file/directory with absolute path FILE_PATH to Flickr
@@ -245,10 +245,9 @@ def upload_file(photosets, uploaded, file_path):
     uploaded.add(file_path)
 
 def sort_sets():
-    """Sorts photosets by semester.
-    """
+    """Sorts photosets by semester."""
     #name => id
-    photosets = unpickle_from(photosets_filename, {})
+    photosets = unpickle_from(PHOTOSETS_FILENAME, {})
     print len(photosets)
 
     def date(set_name):
@@ -274,9 +273,8 @@ def sort_sets():
     flickr.photosets_orderSets(photoset_ids = sorted_ids)
 
 def fetch_photosets():
-    """Update photosets with data from website.
-    """
-    photosets = unpickle_from(photosets_filename, {})
+    """Update photosets with data from website."""
+    photosets = unpickle_from(PHOTOSETS_FILENAME, {})
     result = flickr.photosets_getList()
     photosets_element = [c for c in result if c.tag == 'photosets'][0]
 
@@ -289,7 +287,7 @@ def fetch_photosets():
             missing += 1
     print missing
 
-    with open(photosets_filename, 'w') as f:
+    with open(PHOTOSETS_FILENAME, 'w') as f:
         pickle.dump(photosets, f)
 
 class RetryException(Exception):
@@ -298,6 +296,6 @@ class RetryException(Exception):
 api_key, api_secret = load_keys()
 flickr = authenticate()
 if __name__ == '__main__':
+    upload_new()
     #fetch_photosets()
     #sort_sets()
-    upload_new()
