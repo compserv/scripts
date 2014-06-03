@@ -1,6 +1,6 @@
 import flickrapi
 import os, pickle, time, tarfile
-import re, urllib2
+import re, urllib2, imghdr
 import xml.etree.ElementTree as etree
 import smtplib
 from email.mime.text import MIMEText
@@ -53,16 +53,8 @@ def authenticate():
     return flickr
 
 def is_image(filename):
-    """Returns True iff FILENAME looks like a valid image name."""
-    valid_extensions = ['png', 'jpg', 'jpeg', 'bmp', 'gif']
-
-    filename = filename.lower()
-    match = re.match('.+\\.(.+)', filename)
-    if not match:
-        return False
-    extension = match.group(1)
-
-    return extension in valid_extensions
+    """Returns True iff FILENAME looks like a valid image."""
+    return imghdr.what(filename) is not None
 
 def new_files(uploaded):
     """Return a list of new images.

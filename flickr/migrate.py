@@ -17,6 +17,10 @@ def normalize(name):
 
 def dirname(event):
     """Normalizes event name.
+    Since directory names are supposed to start with MMDD, for
+    directories where this is unknown we add 0000- and the script
+    handles it appropriately.
+
     >>> dirname('Ice Cream Social')
     '0000-IceCreamSocial'
     """
