@@ -28,7 +28,7 @@ def load_keys():
         api_secret = f.read()
     return api_key, api_secret
 
-def authenticate():
+def authenticate(api_key, api_secret):
     """Authenticates the application. Asks user to authenticate
     if token not already stored.
     """
@@ -98,7 +98,7 @@ def upload_new():
     bad_events = set()
     for file_path in files:
         try:
-            bad_event = upload_file(photosets, uploaded, file_path)
+            bad_event = upload_file(flickr, photosets, uploaded, file_path)
             if bad_event:
                 bad_events.add(bad_event)
         except RetryException:
@@ -116,7 +116,7 @@ def upload_new():
     with open(UPLOADED_FILENAME, 'w') as f:
         pickle.dump(uploaded, f)
 
-def insert_photoset(photosets, set_name, photo_id):
+def insert_photoset(flickr, photosets, set_name, photo_id):
     """Given an photoset name SET_NAME and a mapping PHOTOSETS from
     directory to photoset id, puts the photo with id PHOTO_ID in the
     appropriate photoset, creating it if necessary.
@@ -195,7 +195,7 @@ def send_email(bad_events):
     s.sendmail(COMPSERV_EMAIL, [BRIDGE_EMAIL], msg.as_string())
     s.quit()
 
-def upload_file(photosets, uploaded, file_path):
+def upload_file(flickr, photosets, uploaded, file_path):
     """Uploads file/directory with absolute path FILE_PATH to Flickr
     and puts it in an appropriate photoset, given the dict of existing
     photosets PHOTOSETS. Also tags it.
@@ -227,7 +227,7 @@ def upload_file(photosets, uploaded, file_path):
         photoset_name = '-'.join([semester, event[5:]])
     else:
         photoset_name = '-'.join([semester, event])
-    insert_photoset(photosets, photoset_name, photoid)
+    insert_photoset(flickr, photosets, photoset_name, photoid)
 
     event = event[5:]
     tags = ' '.join([semester, event])
@@ -236,7 +236,7 @@ def upload_file(photosets, uploaded, file_path):
 
     uploaded.add(file_path)
 
-def sort_sets():
+def sort_sets(flickr):
     """Sorts photosets by semester."""
     #name => id
     photosets = unpickle_from(PHOTOSETS_FILENAME, {})
@@ -264,7 +264,7 @@ def sort_sets():
 
     flickr.photosets_orderSets(photoset_ids = sorted_ids)
 
-def fetch_photosets():
+def fetch_photosets(flickr):
     """Update photosets with data from website."""
     photosets = unpickle_from(PHOTOSETS_FILENAME, {})
     result = flickr.photosets_getList()
@@ -285,7 +285,7 @@ def fetch_photosets():
 class RetryException(Exception):
     pass
 
-api_key, api_secret = load_keys()
-flickr = authenticate()
 if __name__ == '__main__':
-    upload_new()
+    api_key, api_secret = load_keys()
+    flickr = authenticate(api_key, api_secret)
+    upload_new(flickr)
