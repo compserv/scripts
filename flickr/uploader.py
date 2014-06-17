@@ -52,9 +52,10 @@ def authenticate(api_key, api_secret):
     flickr.get_token_part_two((token, frob))
     return flickr
 
-def is_image(filename):
-    """Returns True iff FILENAME looks like a valid image."""
-    return imghdr.what(filename) is not None
+def is_image(filepath):
+    """Returns True iff the file referenced by FILEPATH looks like a
+    valid image."""
+    return imghdr.what(filepath) is not None
 
 def new_files(uploaded):
     """Return a list of new images.
@@ -65,10 +66,10 @@ def new_files(uploaded):
     new_files = []
     for dirpath, dirnames, filenames in os.walk(PICTURE_DIR):
         for filename in filenames:
-            if not is_image(filename):
-                continue
             file_path = os.path.join(dirpath, filename)
             if file_path in uploaded:
+                continue
+            if not is_image(file_path):
                 continue
 
             new_files.append(file_path)
@@ -85,7 +86,7 @@ def unpickle_from(filename, default):
     with open(filename) as f:
         return pickle.load(f)
 
-def upload_new():
+def upload_new(flickr):
     """Walks the pictures directory and uploads all new files.
     Also saves changed directories as tarballs.
     """
