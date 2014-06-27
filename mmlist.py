@@ -40,6 +40,9 @@ ENTRIES_PATH = set([])
 
 class NoExpansionException(Exception): pass
 
+def check_root():
+    return os.geteuid() == 0
+
 def script_exit(error_code):
     try:
         global SCRIPT_LOCK
@@ -550,6 +553,10 @@ def init():
 def main():
     global VIRTUAL_OUTPUT, ALIASES_OUTPUT, ACTUAL_VIRTUAL, ACTUAL_ALIASES
     options, args = parse_options()
+
+    if not check_root():
+        print("This script does not appear to be running as root. Please re-run as root.")
+        return
 
     if options.clean:
         os.remove(SCRIPT_LOCK)
