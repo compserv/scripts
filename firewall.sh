@@ -51,6 +51,7 @@ NTP_PORT=123
 RSYNC_PORT=873
 IRC_PORT=6697
 QWEBIRC_PORT=9090
+MUNIN_NODE_PORT=4949
 
 # Flush old rules.
 $IPT -F
@@ -145,6 +146,9 @@ $IPT -A services -p tcp --dport $IRC_PORT -j ACCEPT
 
 # Allow qwebirc
 $IPT -A services -p tcp --dport $QWEBIRC_PORT -j ACCEPT
+
+# Allow munin-node
+$IPT -A services -s 128.32.112.201 -p tcp --dport $MUNIN_NODE_PORT -j ACCEPT
 
 # Log and drop everything else.
 $IPT -A services -j log-and-drop

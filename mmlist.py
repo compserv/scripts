@@ -492,6 +492,7 @@ def wipe_all_current_mlists(mlist):
 
 def wipe_current_mlist(mlist):
     mlist_path = os.path.join(CURRENT_MLISTS_DIR, mlist)
+    print("Wiping %s" % mlist_path)
 
     if not os.path.isfile(mlist_path):
         raise Exception("Could not find entry file: %s" % mlist)
