@@ -300,8 +300,7 @@ class NewUser(object):
                 'uid': self.login,
                 'gidNumber': NewUser.HKN_GID,
                 'homeDirectory': self.get_homedir(),
-                'loginShell': NewUser.DEFAULT_SHELL,
-                'description:': self.login + "@hkn.eecs.berkeley.edu"
+                'loginShell': NewUser.DEFAULT_SHELL
                 }
         print "Adding uid:", self.uidNumber
 
