@@ -506,23 +506,45 @@ def wipe_current_mlists(mlist):
 
 def change_username(login, new_name):
     l = init_ldap()
-    baseDN = "ou=people,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
+    peopleDN = "ou=people,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
+    groupsDN = "ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
     searchScope = ldap.SCOPE_SUBTREE
     ## retrieve all attributes - again adjust to your needs - see documentation for more options
     retrieveAttributes = None
+    groupsRetrieveAttributes = ['memberUid']
     login = ldap.filter.escape_filter_chars(login)
     new_name = ldap.filter.escape_filter_chars(new_name)
-    searchFilter = "uid={0}".format(login)
+    uidFilter = "uid={0}".format(login)
+    groupsFilter = "cn=*"
 
     try:
-        userSearch = l.search_s(baseDN, searchScope, searchFilter, retrieveAttributes)
+        userSearch = l.search_s(peopleDN, searchScope, uidFilter, retrieveAttributes)
 
         if len(userSearch) > 1:
             print "Warning, multiple users found."
-        else:
-            dn = userSearch[0][0]
-            new_rdn = "uid={0}".format(new_name)
-            l.rename_s(dn, new_rdn)
+            return
+        elif len(userSearch) == 0:
+            print "User not found."
+            return
+
+        dn = userSearch[0][0]
+        new_rdn = "uid={0}".format(new_name)
+        l.rename_s(dn, new_rdn)
+
+        groupSearch = l.search_s(groupsDN, searchScope, groupsFilter, groupsRetrieveAttributes)
+
+        for (groupdn, data) in groupSearch:
+            if 'memberUid' in data:
+                group_members = data['memberUid']
+                if login in group_members:
+                    new_members = copy.deepcopy(group_members)
+                    new_members[new_members.index(login)] = new_name
+
+                    oldattr = {'memberUid' : group_members}
+                    newattr = {'memberUid' : new_members}
+
+                    ldif = modlist.modifyModlist(oldattr,newattr)
+                    l.modify_s(groupdn, ldif)
 
     except ldap.LDAPError, e:
         print e
