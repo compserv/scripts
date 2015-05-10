@@ -548,6 +548,8 @@ def change_username(login, new_name):
 
     except ldap.LDAPError, e:
         print e
+    finally:
+        l.unbind_s()
 
 # Backs up all files that will be edited
 def backup():
