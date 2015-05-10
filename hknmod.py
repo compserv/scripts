@@ -12,6 +12,7 @@ import os
 import re
 import ldap
 import ldap.modlist as modlist
+import ldap.filter
 import copy
 from optparse import OptionParser
 from subprocess import Popen, PIPE
@@ -27,9 +28,9 @@ GIDS = {}
 def script_exit(error_code):
     mmlist.script_exit(error_code)
 
-def error_exit(s):
-    print "[ERROR] %s" % s
-    mmlist.script_exit(1)
+def error_exit(str):
+    script_exit(1)
+    raise Exception(str)
 
 def warn(s):
     print "[WARNING] %s" % s
@@ -503,6 +504,29 @@ def wipe_current_mlists(mlist):
     #        pass
     mmlist.wipe_all_current_mlists(mlist)
 
+def change_username(login, new_name):
+    l = init_ldap()
+    baseDN = "ou=people,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
+    searchScope = ldap.SCOPE_SUBTREE
+    ## retrieve all attributes - again adjust to your needs - see documentation for more options
+    retrieveAttributes = None
+    login = ldap.filter.escape_filter_chars(login)
+    new_name = ldap.filter.escape_filter_chars(new_name)
+    searchFilter = "uid={0}".format(login)
+
+    try:
+        userSearch = l.search_s(baseDN, searchScope, searchFilter, retrieveAttributes)
+
+        if len(userSearch) > 1:
+            print "Warning, multiple users found."
+        else:
+            dn = userSearch[0][0]
+            new_rdn = "uid={0}".format(new_name)
+            l.rename_s(dn, new_rdn)
+
+    except ldap.LDAPError, e:
+        print e
+
 # Backs up all files that will be edited
 def backup():
     os.system("ldapsearch -x -b \"dc=hkn, dc=eecs, dc=berkeley, dc=edu\" -h 127.0.0.1 -D \"cn=admin,dc=hkn,dc=eecs,dc=berkeley,dc=edu\" -y ldp \"(objectclass=*)\" > ldap_backup")
@@ -589,6 +613,8 @@ def parse_options():
             help="the user's first name")
     parser.add_option('--nl', dest='last_name', metavar='last name',
             help="the user's last name")
+    parser.add_option('-r', dest='new_name', metavar='new name',
+            help="the user's new username")
     parser.add_option('-y', action='store_true', dest='is_cmember',
             default=False,
             help="add this flag if this is for a committee member")
@@ -647,10 +673,16 @@ def main():
             add_new_user(opts.login, opts.comm, opts.email, opts.first_name,
                     opts.last_name, opts.is_cmember, opts.not_current)
 
-    elif opts.wipe_mlists is not None:
-        check_val(opts.wipe_mlists, 'this option needs a maillist to'
+    elif opts.wipe_mlists is not False:
+        check_val(opts.wipe_mlists, 'this option needs a maillist to '
                                     'save to (-w)')
         wipe_current_mlists(opts.wipe_mlists)
+
+    elif opts.new_name is not None:
+        check_val(opts.login, 'this option needs login (-l)')
+        check_val(opts.new_name, 'this option needs a target name (-r)')
+
+        change_username(opts.login, opts.new_name)
 
     script_exit(0)
 
