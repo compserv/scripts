@@ -49,8 +49,7 @@ def check_maillists(login):
 
 def init_ldap():
     try:
-        l = ldap.open("127.0.0.1")
-        #l = ldap.initialize('ldapi:///')
+        l = ldap.initialize('ldapi:///')
 
         # you should  set this to ldap.VERSION2 if you're using a v2 directory
         l.protocol_version = ldap.VERSION3
@@ -60,13 +59,12 @@ def init_ldap():
         # you will still bind to the server but with limited privileges.
 
         username = "cn=admin,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
-        basedn = "ou=people,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
         with open('/etc/libnss-ldap.secret', 'r') as passfile:
              password = passfile.readline()
 
         # Any errors will throw an ldap.LDAPError exception
         # or related exception so you can ignore the result
-        l.simple_bind(username, password)
+        l.simple_bind_s(username, password)
     except ldap.LDAPError, e:
         print e
         # handle error however you like
