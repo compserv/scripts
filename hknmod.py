@@ -164,91 +164,72 @@ def find_next_uid(l):
 
 def unset_ldap_group(username, group):
     l = init_ldap()
-    ## The next lines will also need to be changed to support your search requirements and directory
     baseDN = "ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
     searchScope = ldap.SCOPE_SUBTREE
     ## retrieve all attributes - again adjust to your needs - see documentation for more options
     retrieveAttributes = ["memberUid"]
+    username = ldap.filter.escape_filter_chars(username)
+    group = ldap.filter.escape_filter_chars(group)
+    groupsFilter = "cn={0}".format(group)
 
-    searchFilter = "cn=%s" % group
     try:
-        ldap_result_id = l.search(baseDN, searchScope, searchFilter, retrieveAttributes)
-        result_set = []
-        while 1:
-            result_type, result_data = l.result(ldap_result_id, 0)
-            if (result_data == []):
-                break
-            else:
-                ## here you don't have to append to a list
-                ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration.
-                if result_type == ldap.RES_SEARCH_ENTRY:
-                    result_set.append(result_data)
+        groupSearch = l.search_s(baseDN, searchScope, groupsFilter, retrieveAttributes)
+
+        if len(groupSearch) != 1:
+            print "Group not found!"
+            return
+
+        (groupdn, data) = groupSearch[0]
+        if 'memberUid' in data:
+            group_members = data['memberUid']
+            if username in group_members:
+                new_members = copy.deepcopy(group_members)
+                new_members.remove(username)
+
+                oldattr = {'memberUid' : group_members}
+                newattr = {'memberUid' : new_members}
+
+                ldif = modlist.modifyModlist(oldattr,newattr)
+                l.modify_s(groupdn, ldif)
+
     except ldap.LDAPError, e:
         print e
-
-    old = result_set[0][0][1]['memberUid']
-    new = copy.deepcopy(old)
-    if username in new:
-        new.remove(username)
-
-    oldattr = {'memberUid' : old}
-    newattr = {'memberUid' : new}
-
-    # The dn of our existing entry/object
-    dn = "cn=%s,ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu" % group
-
-    # Convert place-holders for modify-operation using modlist-module
-    ldif = modlist.modifyModlist(oldattr,newattr)
-
-    # Do the actual modification
-    l.modify_s(dn,ldif)
-
-    l.unbind_s()
+    finally:
+        l.unbind_s()
 
 def set_ldap_group(username, group):
     l = init_ldap()
-    ## The next lines will also need to be changed to support your search requirements and directory
     baseDN = "ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
     searchScope = ldap.SCOPE_SUBTREE
     ## retrieve all attributes - again adjust to your needs - see documentation for more options
     retrieveAttributes = ["memberUid"]
+    username = ldap.filter.escape_filter_chars(username)
+    group = ldap.filter.escape_filter_chars(group)
+    groupsFilter = "cn={0}".format(group)
 
-    searchFilter = "cn=%s" % group
     try:
-        ldap_result_id = l.search(baseDN, searchScope, searchFilter, retrieveAttributes)
-        result_set = []
-        while 1:
-            result_type, result_data = l.result(ldap_result_id, 0)
-            if (result_data == []):
-                break
-            else:
-                ## here you don't have to append to a list
-                ## you could do whatever you want with the individual entry
-                ## The appending to list is just for illustration.
-                if result_type == ldap.RES_SEARCH_ENTRY:
-                    result_set.append(result_data)
+        groupSearch = l.search_s(baseDN, searchScope, groupsFilter, retrieveAttributes)
+
+        if len(groupSearch) != 1:
+            print "Group not found!"
+            return
+
+        (groupdn, data) = groupSearch[0]
+        if 'memberUid' in data:
+            group_members = data['memberUid']
+            new_members = copy.deepcopy(group_members)
+            new_members.append(username)
+
+            oldattr = {'memberUid' : group_members}
+            newattr = {'memberUid' : new_members}
+
+            ldif = modlist.modifyModlist(oldattr,newattr)
+            l.modify_s(groupdn, ldif)
+
     except ldap.LDAPError, e:
         print e
-
-    old = result_set[0][0][1]['memberUid']
-    new = copy.deepcopy(old)
-    if username not in new:
-        new.append(username)
-
-    oldattr = {'memberUid' : old}
-    newattr = {'memberUid' : new}
-
-    # The dn of our existing entry/object
-    dn = "cn=%s,ou=groups,dc=hkn,dc=eecs,dc=berkeley,dc=edu" % group
-
-    # Convert place-holders for modify-operation using modlist-module
-    ldif = modlist.modifyModlist(oldattr,newattr)
-
-    # Do the actual modification
-    l.modify_s(dn,ldif)
-
-    l.unbind_s()
+    finally:
+        l.unbind_s()
 
 def to_ldap_group(name):
   """ Given a committee mailing list name, returns the corresponding user group.
@@ -714,7 +695,7 @@ def main():
             add_new_user(opts.login, opts.comm, opts.email, opts.first_name,
                     opts.last_name, opts.is_cmember, opts.not_current)
 
-    elif opts.wipe_mlists is not False:
+    elif opts.wipe_mlists:
         check_val(opts.wipe_mlists, 'this option needs a maillist to '
                                     'save to (-w)')
         wipe_current_mlists(opts.wipe_mlists)
