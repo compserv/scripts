@@ -360,17 +360,6 @@ def create_user(l, new_user):
 
 def create_homedir(new_user):
     SKEL_DIR = '/etc/skel'
-    PROCMAILRC = '.procmailrc'
-    PROCMAILRC_TEMPLATE = \
-"""MAILDIR=$HOME/mail
-
-:0:
-* ^X-Spam-Status: Yes
-/dev/null
-
-:0:
-! %s@hkn.eecs.berkeley.edu.test-google-a.com
-"""
 
     if not check_root():
         warn_and_raise_nue("You're not root... This will be very hard to do, so I'm giving up.")
@@ -383,11 +372,24 @@ def create_homedir(new_user):
     os.system('cp -R %s %s' % (SKEL_DIR, homedir))
     os.mkdir(os.path.join(homedir, 'mail'))
 
-    f = open(os.path.join(homedir, PROCMAILRC), 'w')
-    f.write(PROCMAILRC_TEMPLATE % new_user.login)
-    f.close()
+    create_procmailrc(homedir, new_user.login)
 
     os.system('chown -R %s:hkn %s' % (new_user.login, homedir))
+
+def create_procmailrc(homedir, login):
+    PROCMAILRC = '.procmailrc'
+    PROCMAILRC_TEMPLATE = \
+"""MAILDIR=$HOME/mail
+
+:0:
+* ^X-Spam-Status: Yes
+/dev/null
+
+:0:
+! {0}@hkn.eecs.berkeley.edu.test-google-a.com
+"""
+    with open(os.path.join(homedir, PROCMAILRC), 'w') as f:
+        f.write(PROCMAILRC_TEMPLATE.format(login))
 
 def set_comm_membership(login, comm):
     if not check_group(to_ldap_group(comm)):
@@ -515,7 +517,11 @@ def change_username(login, new_name):
     uidFilter = "uid={0}".format(login)
     groupsFilter = "cn=*"
 
+    oldDirectory = "/home/{0}".format(login)
+    newDirectory = "/home/{0}".format(new_name)
+
     try:
+        # Search for the user to see if it exists
         userSearch = l.search_s(peopleDN, searchScope, uidFilter, retrieveAttributes)
 
         if len(userSearch) > 1:
@@ -525,10 +531,23 @@ def change_username(login, new_name):
             print "User not found."
             return
 
+        # Rename the user
         dn = userSearch[0][0]
         new_rdn = "uid={0}".format(new_name)
         l.rename_s(dn, new_rdn)
 
+        new_dn = "{0},{1}".format(new_rdn, peopleDN)
+
+        # Rename the user's home directory
+        os.rename(oldDirectory, newDirectory)
+
+        # Rename the home directory in LDAP
+        ldif = [(ldap.MOD_REPLACE, "homeDirectory", [newDirectory])]
+        l.modify_s(new_dn, ldif)
+
+        create_procmailrc(newDirectory, new_name)
+
+        # Change the username in every group it's in
         groupSearch = l.search_s(groupsDN, searchScope, groupsFilter, groupsRetrieveAttributes)
 
         for (groupdn, data) in groupSearch:
