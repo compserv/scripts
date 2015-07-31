@@ -129,6 +129,9 @@ $IPT -A services -p tcp --dport $HTTP_PORT -j ACCEPT
 # Allow https.
 $IPT -A services -p tcp --dport $HTTPS_PORT -j ACCEPT
 
+# FOR NOW allow 4431
+$IPT -A services -p tcp --dport 4431 -j ACCEPT
+
 # Allow authentication for http on hkn website.
 $IPT -A services -p tcp --dport $HTTP_AUTH_PORT -j ACCEPT
 

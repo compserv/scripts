@@ -305,22 +305,54 @@ def warn_and_raise_nue(s):
     warn(s)
     raise NewUserException(s)
 
+#new content here June 2015 to try to update to new API
+SERVICE_ACCOUNT_EMAIL = "162858711208-gtvmconl0et75fgpapdsnuscdt1pjf9o@developer.gserviceaccount.com"
+SERVICE_ACCOUNT_PKCS12_FILE_PATH = "/home/gafyd/pygafyd/pygafyd-3d9ca0095976.p12"
+import httplib2
+import pprint
+from apiclient.discovery import build
+from oauth2client.client import SignedJwtAssertionCredentials
+G_EMAIL = "hkn-ops@hkn.eecs.berkeley.edu"
+G_PASSWORD = "a89Kl.o3"
+G_DOMAIN = "hkn.eecs.berkeley.edu"
+def createDirectoryService():
+    f = file(SERVICE_ACCOUNT_PKCS12_FILE_PATH, 'rb')
+    key = f.read()
+    f.close()
+    credentials = SignedJwtAssertionCredentials(SERVICE_ACCOUNT_EMAIL, key, scope='https://www.googleapis.com/auth/admin.directory.user', sub=G_EMAIL)
+    http = httplib2.Http()
+    http = credentials.authorize(http)
+    return build('admin', 'directory_v1', http=http)
+
+
 def create_gafyd_user(new_user):
-    from gdata.apps.service import AppsService
+    # from gdata.apps.service import AppsService
 
-    G_EMAIL = "hkn-ops@hkn.eecs.berkeley.edu"
-    G_PASSWORD = "a89Kl.o3"
-    G_DOMAIN = "hkn.eecs.berkeley.edu"
+    # s = AppsService(email=G_EMAIL, password=G_PASSWORD, domain=G_DOMAIN)
+    # s.ProgrammaticLogin()
+    s = createDirectoryService()
 
-    s = AppsService(email=G_EMAIL, password=G_PASSWORD, domain=G_DOMAIN)
-    s.ProgrammaticLogin()
-
+    useremail = new_user.login + "@hkn.eecs.berkeley.edu"
+    
     try:
-        s.RetrieveUser(new_user.login)
+        u = s.users()
+        request = u.get(userKey=useremail)
+        i = request.execute()
+        # s.RetrieveUser(new_user.login)
     except:
-        s.CreateUser(new_user.login, new_user.last_name, new_user.first_name,
-                new_user.DEFAULT_USER_HASH, password_hash_function='SHA-1')
-
+        # s.CreateUser(new_user.login, new_user.last_name, new_user.first_name, new_user.DEFAULT_USER_HASH, password_hash_function='SHA-1')
+        try:
+            body = {}
+            body["primaryEmail"] = useremail
+            namedict = {"fullName" : new_user.first_name + " " + new_user.last_name, "givenName" : new_user.first_name, "familyName" : new_user.last_name}
+            body["name"] = namedict
+            body["password"] = new_user.DEFAULT_USER_HASH
+            body["hashFunction"] = "SHA-1"
+            request = u.insert(body=body)
+            i = request.execute()
+        except Exception, e:
+            print "Exception while creating " + new_user.login + " : "
+            print str(e)
 
 def create_user(l, new_user):
     if check_login(new_user):
