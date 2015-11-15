@@ -3,7 +3,7 @@
 tempfile=`mktemp /tmp/diskreport.XXXXXX` || exit 1
 date=`date`
 FROM="root@hkn.eecs.berkeley.edu"
-TO="ops@hkn.eecs.berkeley.edu"
+TO="compserv@hkn.moe"
 echo "From: $FROM">$tempfile
 echo "To: $TO">>$tempfile
 echo "Reply-To: $TO">>$tempfile
