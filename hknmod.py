@@ -38,15 +38,6 @@ def warn(s):
 def check_root():
     return os.geteuid() == 0
 
-# Returns true if login is already the name of a mailing list.
-def check_maillists(login):
-    cmd = "/home/hkn/compserv/scripts/mmlist.py -l"
-    p = Popen(cmd, shell=True, stdout=PIPE)
-    output = p.stdout
-    maillists = [line[:-1] for line in output.readlines()]
-
-    return login in maillists
-
 def init_ldap():
     try:
         l = ldap.initialize('ldapi:///')
@@ -333,7 +324,7 @@ def create_gafyd_user(new_user):
     s = createDirectoryService()
 
     useremail = new_user.login + "@hkn.eecs.berkeley.edu"
-    
+
     try:
         u = s.users()
         request = u.get(userKey=useremail)
@@ -357,10 +348,6 @@ def create_gafyd_user(new_user):
 def create_user(l, new_user):
     if check_login(new_user):
         warn_and_raise_nue('Given login (%s) already exists.' % new_user)
-
-    if check_maillists(new_user):
-        warn_and_raise_nue('Given login (%s) is already a mailing list.' % new_user)
-
 
     # Convert our dict to nice syntax for the add-function using modlist-module
     ldif = modlist.addModlist(new_user.get_attrs(l))
@@ -420,68 +407,8 @@ def unset_comm_membership(login, comm):
     if comm == 'compserv':
         unset_ldap_group(login, to_ldap_group('ops'))
 
-def set_mail_membership(login, comm, is_cmember, not_current):
-    old_virtual, old_aliases = mmlist.init()
-
-    if comm == 'ops':
-        aliases = set(['ops'])
-    else:
-        aliases = set([comm + ('-cmembers' if is_cmember else '-officers')])
-    if comm == 'compserv':
-        aliases.add('ops')
-
-    if not not_current:
-        if comm != 'pres' and comm != 'vp':
-            aliases.add('current-non-pvp')
-
-        if is_cmember:
-            aliases.add('current-cmembers')
-        else:
-            aliases.add('current-officers')
-
-        aliases.add('current-' + comm)
-
-    for alias in aliases:
-        if alias not in old_virtual:
-            warn_and_raise_nue('Alias for committee (%s) could not be found.' % alias)
-
-        mmlist.insert_email(login, alias, True)
-
-def unset_mail_membership(login, comm, is_cmember, not_current):
-    old_virtual, old_aliases = mmlist.init()
-
-    if comm == 'ops':
-        aliases = set(['ops'])
-    else:
-        aliases = set([comm + ('-cmembers' if is_cmember else '-officers')])
-    if comm == 'compserv':
-        aliases.add('ops')
-
-    if not not_current:
-        if comm != 'pres' and comm != 'vp':
-            aliases.add('current-non-pvp')
-
-        if is_cmember:
-            aliases.add('current-cmembers')
-        else:
-            aliases.add('current-officers')
-
-        if comm == 'compserv' or comm == 'studrel' or comm == 'bridge' or comm == 'pres' or comm == 'vp':
-            aliases.add('current-' + comm)
-
-    for alias in aliases:
-        if alias not in old_virtual:
-            warn_and_raise_nue('Alias for committee (%s) could not be found.' % alias)
-
-        if login not in old_virtual[comm]:
-            try:
-                mmlist.delete_email(login, alias)
-            except Exception as e:
-                warn("Could not delete email: " + str(e))
-
 def unmod_user(login, comm, is_cmember, not_current):
     unset_comm_membership(login, comm)
-    unset_mail_membership(login, comm, is_cmember, not_current)
 
 def add_new_user(login, comm, email, first_name, last_name, is_cmember, not_current):
     l = init_ldap()
@@ -490,7 +417,6 @@ def add_new_user(login, comm, email, first_name, last_name, is_cmember, not_curr
     create_user(l, new_user)
     create_homedir(new_user)
     set_comm_membership(new_user.login, comm)
-    set_mail_membership(new_user.login, comm, is_cmember, not_current)
     create_gafyd_user(new_user)
 
 #Used to add back users who were lost when hkn was restarted in 05/12
@@ -503,19 +429,6 @@ def add_dead_user(login, comm, first_name, last_name, uid):
 
 def mod_user(login, comm, is_cmember, not_current):
     set_comm_membership(login, comm)
-    set_mail_membership(login, comm, is_cmember, not_current)
-
-def wipe_current_mlists(mlist):
-    #mlists = ['current-bridge', 'current-cmembers', 'current-compserv',
-    #'current-non-pvp', 'current-officers', 'current-pres', 'current-studrel',
-    #'current-vp']
-
-    #for mlist in mlists:
-    #    try:
-    #        mmlist.wipe_current_mlist(mlist)
-    #    except:
-    #        pass
-    mmlist.wipe_all_current_mlists(mlist)
 
 def change_username(login, new_name):
     l = init_ldap()
@@ -730,7 +643,6 @@ def main():
     elif opts.wipe_mlists:
         check_val(opts.wipe_mlists, 'this option needs a maillist to '
                                     'save to (-w)')
-        wipe_current_mlists(opts.wipe_mlists)
 
     elif opts.new_name is not None:
         check_val(opts.login, 'this option needs login (-l)')
@@ -742,17 +654,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    #parse_positions()
-    #set_group_membership('amber', to_ldap_group('ops'))
-    #print check_login("arjun")
-    #print check_login("richardxia")
-    #print check_login("awong")
-    #print POSITIONS
-    #parse_positions()
-    #officers, new_officers = parse("new_officers")
-    #create_user(new_officers, "awong")
-    #set_group_membership('awong', 'compserv')
-    #print find_next_uid(init_ldap())
-    #print find_next_uid(init_ldap())
-    #hashes()
 
