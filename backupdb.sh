@@ -21,10 +21,10 @@ cd $BACKUPPATH
 for DB in "${DBLIST[@]}"; do #Dump each database in the list
     #Dump the current database into a file
     echo "Dumping $DB"
-    pg_dump -U postgres $DB > $DB-$DATE-$TIME.sql
+    pg_dump -U postgres $DB > $DB.sql
 
     echo "Compressing archives of $DB"
-    pbzip2 -f $DB-$DATE-$TIME.sql
+    pbzip2 -f $DB.sql
 done
 
 echo "Compressing databases into one file"
@@ -33,7 +33,7 @@ IDSFILE=$BACKUPPATH/glacier-$MMMYY-ids
 
 #Compress all the dbs into one file
 cd $BACKUPHOME
-tar cvf $GLACIERFILE $MMMYY
+tar cvf $GLACIERFILE $MMMYY > /dev/null
 
 #Run Python script to upload to Glacier
 echo "Uploading all databases to Glacier"
@@ -46,7 +46,10 @@ python glacier.py $GLACIERFILE >> $IDSFILE
 OLD_MMMYY=`date --date='-7 month' +"%b%y"`
 OLD_BACKUPPATH=$BACKUPHOME/$OLD_MMMYY
 OLD_IDS_FILE=$OLD_BACKUPPATH/glacier-$OLD_MMMYY-ids
-python glacier.py --delete $GLACIERFILE >> $IDSFILE
+if [ ! -f OLD_IDS_FILE ]; then
+    python glacier.py --delete $OLD_IDS_FILE
+    rm $OLD_IDS_FILE
+fi
 
 deactivate
 

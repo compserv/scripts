@@ -28,9 +28,10 @@ def upload(filename):
     """
     client = connect()
     for _ in range(RETRIES):
+        description = str(time.asctime()).replace(' ', '_')
         archive_id = client.upload_archive(
             vaultName=VAULT_NAME,
-            archiveDescription=str(time.asctime()),
+            archiveDescription=description,
             body=open(filename))
         print(time.asctime() + ": ID " + str(archive_id))
         return
