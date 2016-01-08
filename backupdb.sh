@@ -46,7 +46,7 @@ python glacier.py $GLACIERFILE >> $IDSFILE
 OLD_MMMYY=`date --date='-7 month' +"%b%y"`
 OLD_BACKUPPATH=$BACKUPHOME/$OLD_MMMYY
 OLD_IDS_FILE=$OLD_BACKUPPATH/glacier-$OLD_MMMYY-ids
-if [ ! -f OLD_IDS_FILE ]; then
+if [ -f $OLD_IDS_FILE ]; then
     python glacier.py --delete $OLD_IDS_FILE
     rm $OLD_IDS_FILE
 fi
