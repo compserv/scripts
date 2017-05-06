@@ -29,11 +29,11 @@ def upload(filename):
     client = connect()
     for _ in range(RETRIES):
         description = str(time.asctime()).replace(' ', '_')
-        archive_id = client.upload_archive(
+        data = client.upload_archive(
             vaultName=VAULT_NAME,
             archiveDescription=description,
             body=open(filename))
-        print(time.asctime() + ": ID " + str(archive_id))
+        print("Success at " + time.asctime() + ": ID " + data['archiveId'])
         return
 
 def delete_archive(archive_id):
@@ -46,6 +46,7 @@ def delete_archive(archive_id):
 def delete_all(filename):
     with open(filename) as f:
         for line in f:
+            if "ID" not in line: continue
             delete_archive(line.split()[-1])
 
 def start_job(archive_id):
