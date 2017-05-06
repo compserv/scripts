@@ -51,7 +51,7 @@ def init_ldap():
 
         username = "cn=admin,dc=hkn,dc=eecs,dc=berkeley,dc=edu"
         with open('/etc/libnss-ldap.secret', 'r') as passfile:
-             password = passfile.readline()
+             password = passfile.readline().strip()
 
         # Any errors will throw an ldap.LDAPError exception
         # or related exception so you can ignore the result
@@ -298,7 +298,7 @@ def warn_and_raise_nue(s):
 
 #new content here June 2015 to try to update to new API
 SERVICE_ACCOUNT_EMAIL = "162858711208-gtvmconl0et75fgpapdsnuscdt1pjf9o@developer.gserviceaccount.com"
-SERVICE_ACCOUNT_PKCS12_FILE_PATH = "/home/gafyd/pygafyd/pygafyd-3d9ca0095976.p12"
+SERVICE_ACCOUNT_PKCS12_FILE_PATH = "/root/other-homes/gafyd/pygafyd/pygafyd-3d9ca0095976.p12"
 import httplib2
 import pprint
 from apiclient.discovery import build
